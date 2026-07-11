@@ -1,0 +1,84 @@
+{% extends "admin/base.html" %}
+{% set active = 'essays' %}
+{% block title %}เรื่องทั้งหมด{% endblock %}
+{% block body %}
+<div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;margin-bottom:1.8rem">
+  <div>
+    <h1 class="page">Photo essays</h1>
+    <div class="sub" style="margin:0">สร้าง แก้ไข และเผยแพร่เรื่องราวภาพถ่ายของคุณ</div>
+  </div>
+  <form method="post" action="/admin/essays/new" style="display:flex;gap:.5rem;align-items:flex-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label>ชื่อเรื่อง (ไทย)</label>
+      <input type="text" name="title_th" placeholder="เช่น ชีวิตที่ไม่หยุด…" style="width:260px">
+    </div>
+    <button class="btn btn-accent" type="submit">+ สร้างเรื่องใหม่</button>
+  </form>
+</div>
+
+{% if essays %}
+{% set published = essays|selectattr('status','equalto','published')|list %}
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem">
+  <div class="stat-chip"><div class="stat-num">{{ essays|length }}</div><div class="stat-lbl">เรื่องทั้งหมด</div></div>
+  <div class="stat-chip"><div class="stat-num">{{ published|length }}</div><div class="stat-lbl">เผยแพร่แล้ว</div></div>
+  <div class="stat-chip"><div class="stat-num">{{ essays|sum(attribute='views') }}</div><div class="stat-lbl">เข้าชมรวม</div></div>
+  <a class="stat-chip stat-link" href="/admin/stats"><div class="stat-num" style="color:var(--accent)">→</div><div class="stat-lbl">ดูสถิติทั้งหมด</div></a>
+</div>
+<style>
+  .stat-chip{flex:1;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;text-decoration:none;color:inherit}
+  .stat-num{font-family:var(--serif);font-size:1.7rem;line-height:1.1}
+  .stat-lbl{font-size:.78rem;color:var(--muted);letter-spacing:.03em;margin-top:.15rem}
+  .stat-link{transition:border-color .2s} .stat-link:hover{border-color:var(--accent)}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .ess-table{width:100%;border-collapse:collapse;font-size:.92rem;min-width:560px}
+  .ess-table tbody tr{transition:background .15s} .ess-table tbody tr:hover{background:#faf8f4}
+</style>
+<div class="card table-wrap" style="padding:0">
+  <table class="ess-table">
+    <thead>
+      <tr style="background:#faf7f2;text-align:left">
+        <th style="padding:.8rem 1rem;font-size:.74rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">เรื่อง</th>
+        <th style="padding:.8rem 1rem;font-size:.74rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">สถานะ</th>
+        <th style="padding:.8rem 1rem;font-size:.74rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">ภาพ</th>
+        <th style="padding:.8rem 1rem;font-size:.74rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">เข้าชม</th>
+        <th style="padding:.8rem 1rem;font-size:.74rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">อัปเดต</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in essays %}
+      <tr style="border-top:1px solid var(--line)">
+        <td style="padding:.85rem 1rem">
+          <div style="display:flex;gap:.8rem;align-items:center">
+            {% if e.hero_image %}<img src="/uploads/{{ e.hero_image }}" alt="" style="width:56px;height:42px;object-fit:cover;border-radius:6px;flex:none">
+            {% else %}<div style="width:56px;height:42px;border-radius:6px;background:#e9e2d6;flex:none"></div>{% endif %}
+            <div>
+              <div style="font-weight:500">{{ e.title_th or 'ไม่มีชื่อ' }}</div>
+              <div class="muted" style="font-size:.8rem">/essay/{{ e.slug }}</div>
+            </div>
+          </div>
+        </td>
+        <td style="padding:.85rem 1rem">
+          {% if e.status == 'published' %}<span class="pill pill-pub">เผยแพร่</span>
+          {% else %}<span class="pill pill-draft">ฉบับร่าง</span>{% endif %}
+        </td>
+        <td style="padding:.85rem 1rem">{{ e.photo_count }}</td>
+        <td style="padding:.85rem 1rem">{{ e.views }}</td>
+        <td style="padding:.85rem 1rem;white-space:nowrap;color:var(--muted);font-size:.85rem">{{ (e.updated_at or '')[:10] }}</td>
+        <td style="padding:.85rem 1rem;text-align:right;white-space:nowrap">
+          <a class="btn btn-sm" href="/admin/essays/{{ e.id }}">แก้ไข</a>
+          {% if e.status == 'published' %}<a class="btn btn-sm" href="/essay/{{ e.slug }}" target="_blank">ดู ↗</a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:3rem 1.4rem">
+  <div style="font-family:var(--serif);font-size:1.3rem;margin-bottom:.4rem">ยังไม่มีเรื่อง</div>
+  <p class="muted">เริ่มต้นด้วยการสร้างเรื่องใหม่จากปุ่มมุมขวาบน — ตั้งชื่อ อัปโหลดรูป เขียนคำบรรยาย แล้วกดเผยแพร่</p>
+</div>
+{% endif %}
+{% endblock %}

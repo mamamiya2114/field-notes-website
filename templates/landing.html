@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Notes — A Photo Essay Journal</title>
+<meta name="description" content="A personal archive of photo essays — slow observations of mountain valleys, bazaar towns, and the people who move through them.">
+<meta name="theme-color" content="#faf7f2">
+<link rel="canonical" href="{{ request.url_root }}">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23b5542d'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-style='italic' fill='%23faf7f2' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
+<meta property="og:title" content="Field Notes — A Photo Essay Journal">
+<meta property="og:description" content="Slow observations of mountain valleys, bazaar towns, and the people who move through them.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ request.url_root }}">
+{% if featured and featured.hero_image %}<meta property="og:image" content="{{ request.url_root }}uploads/{{ featured.hero_image }}">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a1714;--paper:#faf7f2;--accent:#b5542d;--muted:#6e675e;--line:#e3ddd2;
+    --serif:'Fraunces',Georgia,serif;--sans:'Inter',-apple-system,sans-serif;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  img{display:block;width:100%;height:100%;object-fit:cover;background:#d8d2c7}
+  a{color:inherit;text-decoration:none}
+  /* accessibility: visible keyboard focus + skip link + anchor offset under sticky nav */
+  :focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:4px}
+  :focus:not(:focus-visible){outline:none}
+  button{cursor:pointer}
+  .skip-link{position:absolute;left:1rem;top:-100px;z-index:200;background:var(--ink);color:var(--paper);
+      padding:.7rem 1.2rem;border-radius:0 0 10px 10px;font-size:.85rem;font-weight:600;transition:top .2s}
+  .skip-link:focus{top:0}
+  section,.gallery-wrap,#essays,#archive{scroll-margin-top:80px}
+  nav{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+      padding:1.1rem 5vw;background:rgba(250,247,242,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .wordmark{font-family:var(--serif);font-weight:600;font-size:1.3rem;letter-spacing:-.02em}
+  .wordmark span{color:var(--accent)}
+  nav ul{display:flex;gap:2.2rem;list-style:none;align-items:center}
+  nav ul a{font-size:.83rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);transition:color .2s}
+  nav ul a:hover,nav ul a:focus-visible{color:var(--accent)}
+  .nav-toggle{display:none;background:none;border:none;width:44px;height:44px;align-items:center;justify-content:center;color:var(--ink)}
+  .nav-toggle svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;fill:none}
+  .nav-toggle .icon-close{display:none}
+  body.nav-open .nav-toggle .icon-open{display:none}
+  body.nav-open .nav-toggle .icon-close{display:block}
+  header.hero{display:grid;grid-template-columns:1.05fr .95fr;min-height:84vh;border-bottom:1px solid var(--line)}
+  .hero-text{display:flex;flex-direction:column;justify-content:center;padding:6vh 5vw}
+  .kicker{font-size:.78rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:1.4rem}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(2.6rem,5.4vw,4.6rem);line-height:1.06;letter-spacing:-.02em}
+  h1 em{font-style:italic;font-weight:400;color:var(--accent)}
+  .hero-text p.lede{margin-top:1.6rem;max-width:34rem;font-size:1.06rem;color:var(--muted)}
+  .hero-cta{margin-top:2.4rem;display:flex;gap:1rem;align-items:center}
+  .btn{display:inline-block;padding:.85rem 1.8rem;border-radius:999px;font-size:.85rem;font-weight:600;letter-spacing:.04em;transition:all .25s;border:none;cursor:pointer;font-family:var(--sans)}
+  .btn-primary{background:var(--ink);color:var(--paper)}
+  .btn-primary:hover{background:var(--accent)}
+  .btn-ghost{border:1px solid var(--line);color:var(--ink);background:transparent}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .hero-img{position:relative;overflow:hidden}
+  .hero-img img{height:100%}
+  .hero-img figcaption{position:absolute;bottom:1rem;left:1.2rem;font-size:.72rem;letter-spacing:.06em;color:#fff;
+      background:rgba(20,16,12,.55);padding:.35rem .8rem;border-radius:999px;backdrop-filter:blur(4px)}
+  .strip{display:flex;overflow:hidden;white-space:nowrap;padding:.9rem 0;border-bottom:1px solid var(--line);
+      font-family:var(--serif);font-style:italic;font-size:.95rem;color:var(--muted)}
+  .strip-inner{display:flex;gap:3rem;animation:scroll 30s linear infinite}
+  @keyframes scroll{to{transform:translateX(-50%)}}
+  section{padding:6rem 5vw}
+  .sec-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3rem}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.8rem,3vw,2.6rem);letter-spacing:-.01em}
+  .sec-head a{font-size:.83rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+  .featured{display:grid;grid-template-columns:1.2fr 1fr;gap:4rem;align-items:center;background:var(--ink);color:var(--paper);
+      border-radius:20px;overflow:hidden;padding:0}
+  .featured .fimg{height:100%;min-height:420px}
+  .featured .ftext{padding:3.5rem 3.5rem 3.5rem 0}
+  .featured .kicker{color:#e8a87b}
+  .featured h3{font-family:var(--serif);font-weight:400;font-size:clamp(1.7rem,2.6vw,2.4rem);line-height:1.15;margin-bottom:1.2rem}
+  .featured p{color:#bdb5aa;font-size:1rem;max-width:30rem}
+  .featured .meta{margin-top:2rem;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:#8c8478}
+  .read-more .arrow{display:inline-block;transition:transform .25s ease}
+  .featured:hover .read-more .arrow,.card:hover .read-more .arrow{transform:translateX(4px)}
+  .read-more{color:var(--accent)}
+  .sec-note{font-size:.83rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5rem 2rem}
+  .card{display:flex;flex-direction:column}
+  .card .thumb{aspect-ratio:4/3;border-radius:14px;overflow:hidden;margin-bottom:1.2rem}
+  .card .thumb img{transition:transform .6s ease}
+  .card:hover .thumb img{transform:scale(1.05)}
+  .tag{font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.5rem}
+  .card h3{font-family:var(--serif);font-weight:400;font-size:1.35rem;line-height:1.25;margin-bottom:.6rem;transition:color .2s}
+  .card:hover h3{color:var(--accent)}
+  .card p{font-size:.92rem;color:var(--muted)}
+  .card .meta{margin-top:auto;padding-top:1rem;font-size:.76rem;letter-spacing:.05em;color:#9b948a}
+  .empty{color:var(--muted);font-size:1rem;padding:2rem 0}
+  .pano{position:relative;overflow:hidden;border-top:1px solid var(--line)}
+  .pano img{width:100%;height:auto;max-height:64vh;object-fit:cover}
+  .pano figcaption{position:absolute;bottom:1rem;left:1.2rem;font-size:.72rem;letter-spacing:.06em;color:#fff;
+      background:rgba(20,16,12,.55);padding:.35rem .8rem;border-radius:999px;backdrop-filter:blur(4px)}
+  .gallery{columns:3;column-gap:1.2rem;border-top:1px solid var(--line);padding-top:0}
+  .gallery-wrap{border-top:1px solid var(--line)}
+  .gitem{break-inside:avoid;margin-bottom:1.2rem;border-radius:12px;overflow:hidden;cursor:zoom-in;position:relative}
+  .gitem img{height:auto;transition:transform .5s ease}
+  .gitem:hover img{transform:scale(1.04)}
+  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(15,12,9,.94);display:none;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+  .lightbox.open{display:flex}
+  .lightbox img{max-width:92vw;max-height:84vh;width:auto;height:auto;border-radius:8px;object-fit:contain;background:transparent}
+  .lb-bar{display:flex;gap:1.5rem;align-items:center;color:#cfc8bc;font-size:.85rem}
+  .lb-btn{background:none;border:1px solid #4a443c;color:#cfc8bc;border-radius:999px;padding:.5rem 1.2rem;cursor:pointer;font-family:var(--sans);transition:all .2s}
+  .lb-btn:hover{border-color:#e8a87b;color:#e8a87b}
+  .about{display:grid;grid-template-columns:.8fr 1.2fr;gap:4rem;align-items:center;border-top:1px solid var(--line)}
+  .about .portrait{aspect-ratio:4/5;border-radius:16px;overflow:hidden}
+  .about h2{margin-bottom:1.4rem}
+  .about p{color:var(--muted);max-width:36rem;margin-bottom:1rem}
+  .about .sig{font-family:var(--serif);font-style:italic;font-size:1.3rem;color:var(--ink);margin-top:1.2rem}
+  .subscribe{position:relative;overflow:hidden;text-align:center;background:#f1ece2;border-radius:20px;margin:0 5vw 6rem;padding:4.5rem 2rem}
+  .subscribe .sub-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .subscribe::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(18,16,13,.62),rgba(18,16,13,.7))}
+  .subscribe>*:not(.sub-bg){position:relative;z-index:2}
+  .subscribe h2{margin-bottom:.8rem;color:var(--paper)}
+  .subscribe p{color:#d8d2c7;margin-bottom:2rem}
+  .sub-form{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
+  .sub-form input{padding:.85rem 1.4rem;border:1px solid var(--line);border-radius:999px;font-family:var(--sans);
+      font-size:.9rem;width:min(320px,80vw);background:#fff;outline:none}
+  .sub-form input:focus{border-color:var(--accent)}
+  .subscribe .btn-primary{background:var(--paper);color:var(--ink)}
+  .subscribe .btn-primary:hover{background:#e8a87b;color:var(--ink)}
+  .sub-msg{margin-top:1rem;font-size:.85rem;color:#e8a87b;min-height:1.2em}
+  footer{border-top:1px solid var(--line);padding:2.5rem 5vw;display:flex;justify-content:space-between;
+      flex-wrap:wrap;gap:1rem;font-size:.8rem;color:var(--muted)}
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.show{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.strip-inner{animation:none}}
+  @media(max-width:900px){
+    header.hero{grid-template-columns:1fr;min-height:auto}
+    .hero-img{height:48vh;order:-1}
+    .grid{grid-template-columns:1fr 1fr}
+    .featured{grid-template-columns:1fr;gap:0}
+    .featured .ftext{padding:2.5rem}
+    .about{grid-template-columns:1fr}
+    .gallery{columns:2}
+    .nav-toggle{display:flex}
+    nav ul{position:fixed;top:60px;left:0;right:0;flex-direction:column;align-items:flex-start;gap:0;
+        background:var(--paper);border-bottom:1px solid var(--line);padding:.5rem 5vw 1rem;
+        box-shadow:0 16px 30px -18px rgba(26,23,20,.35);
+        transform:translateY(-12px);opacity:0;visibility:hidden;transition:opacity .22s ease,transform .22s ease,visibility .22s}
+    body.nav-open nav ul{transform:none;opacity:1;visibility:visible}
+    nav ul li{width:100%}
+    nav ul a{display:block;width:100%;padding:.95rem 0;font-size:.95rem;border-bottom:1px solid var(--line)}
+    nav ul li:last-child a{border-bottom:none}
+  }
+  @media(max-width:560px){.grid{grid-template-columns:1fr}.gallery{columns:1}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav>
+  <a class="wordmark" href="/" aria-label="Field Notes — home">Field<span>Notes</span></a>
+  <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+    <svg class="icon-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    <svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+  </button>
+  <ul id="navMenu">
+    <li><a href="#essays">Essays</a></li>
+    <li><a href="#gallery">Gallery</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#subscribe">Subscribe</a></li>
+  </ul>
+</nav>
+
+<main id="main">
+<header class="hero">
+  <div class="hero-text">
+    <div class="kicker">{{ site.hero_kicker }}</div>
+    <h1>{{ site.hero_title | emphasize }}</h1>
+    <p class="lede">{{ site.hero_lede }}</p>
+    <div class="hero-cta">
+      {% if featured %}<a class="btn btn-primary" href="/essay/{{ featured.slug }}">Read the latest essay</a>{% endif %}
+      <a class="btn btn-ghost" href="#about">About this project</a>
+    </div>
+  </div>
+  <figure class="hero-img">
+    <img src="{{ site.hero_image }}" alt="Snow peaks above sunlit poplars, Skardu valley" fetchpriority="high" decoding="async">
+    {% if site.hero_caption %}<figcaption>{{ site.hero_caption }}</figcaption>{% endif %}
+  </figure>
+</header>
+
+<div class="strip"><div class="strip-inner">
+  {% for _ in range(2) %}<span>Documentary</span><span>·</span><span>Mountain Roads</span><span>·</span><span>Bazaar Life</span><span>·</span><span>Field Research</span><span>·</span><span>Highland Pastures</span><span>·</span><span>Archives</span><span>·</span>{% endfor %}
+</div></div>
+
+<section id="essays">
+  {% if featured %}
+  <a class="featured reveal" href="/essay/{{ featured.slug }}" style="display:grid">
+    <figure class="fimg"><img src="/uploads/{{ featured.hero_image }}" alt="{{ featured.title_th }}"></figure>
+    <div class="ftext">
+      <div class="kicker">Featured Essay</div>
+      <h3>{{ featured.title_th }}</h3>
+      <p>{{ featured.summary_en or featured.title_en }}</p>
+      <div class="meta">{% if featured.date_text %}{{ featured.date_text }} · {% endif %}<span class="read-more">Read the essay <span class="arrow">→</span></span></div>
+    </div>
+  </a>
+  {% else %}
+  <div class="sec-head"><h2>No essays yet</h2></div>
+  <p class="empty">ยังไม่มี essay ที่เผยแพร่ — เข้า <a href="/admin" style="color:var(--accent)">หลังบ้าน</a> เพื่อสร้างเรื่องแรก</p>
+  {% endif %}
+</section>
+
+{% if recent %}
+<section id="archive" style="padding-top:0">
+  <div class="sec-head reveal"><h2>Recent essays</h2><a href="#gallery">View full gallery →</a></div>
+  <div class="grid">
+    {% for e in recent %}
+    <a class="card reveal" href="/essay/{{ e.slug }}">
+      <div class="thumb"><img src="/uploads/{{ e.hero_image }}" alt="{{ e.title_th }}"></div>
+      {% if e.location %}<div class="tag">{{ e.location }}</div>{% endif %}
+      <h3>{{ e.title_th }}</h3>
+      <p>{{ e.summary_en or e.title_en }}</p>
+      <div class="meta">{{ e.date_text }}</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<figure class="pano reveal">
+  <img src="/static/images/pano-indus.jpg" alt="The Indus river braiding through the Skardu valley" loading="lazy">
+  <figcaption>The Indus braids through the Skardu valley</figcaption>
+</figure>
+
+<div class="gallery-wrap" id="gallery">
+  <section style="padding-bottom:6rem">
+    <div class="sec-head reveal"><h2>From the archive</h2><span class="sec-note">{{ gallery|length }} photographs · tap any to enlarge</span></div>
+    <div class="gallery">
+      {% for g in gallery %}
+      <figure class="gitem reveal"><img src="/static/images/{{ g }}" alt="Archive photograph" loading="lazy"></figure>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLb()">
+  <img id="lbImg" src="" alt="Enlarged photograph">
+  <div class="lb-bar">
+    <button class="lb-btn" onclick="navLb(-1)">← Prev</button>
+    <span id="lbCount"></span>
+    <button class="lb-btn" onclick="navLb(1)">Next →</button>
+    <button class="lb-btn" onclick="closeLb()">Close ✕</button>
+  </div>
+</div>
+
+<section id="about" class="about">
+  <figure class="portrait reveal"><img src="{{ site.about_image }}" alt="Street scene from fieldwork" loading="lazy"></figure>
+  <div class="reveal">
+    {% if site.about_kicker %}<div class="kicker">{{ site.about_kicker }}</div>{% endif %}
+    <h2>{{ site.about_heading }}</h2>
+    {% for para in paragraphs(site.about_body) %}<p>{{ para }}</p>{% endfor %}
+    {% if site.about_signature %}<p class="sig">{{ site.about_signature }}</p>{% endif %}
+  </div>
+</section>
+
+<section id="subscribe" class="subscribe reveal" style="padding-left:2rem;padding-right:2rem">
+  <img class="sub-bg" src="/static/images/bg-lake.jpg" alt="" loading="lazy" aria-hidden="true">
+  <h2>{{ site.subscribe_heading }}</h2>
+  <p>{{ site.subscribe_tagline }}</p>
+  <form class="sub-form" onsubmit="return subscribe(event)">
+    <input type="email" name="email" placeholder="your@email.com" required>
+    <button class="btn btn-primary" type="submit">Subscribe</button>
+  </form>
+  <div class="sub-msg" id="subMsg">{% with m = get_flashed_messages() %}{% if m %}{{ m[0] }}{% endif %}{% endwith %}</div>
+</section>
+
+</main>
+
+<footer>
+  <div>© {{ now_year }} Field Notes · {{ site.footer_tagline }}</div>
+  <div>
+    {% if site.footer_instagram %}<a href="{{ site.footer_instagram }}" target="_blank" rel="noopener">Instagram</a>{% else %}Instagram{% endif %} ·
+    {% if site.footer_contact %}<a href="mailto:{{ site.footer_contact }}">Contact</a>{% else %}Contact{% endif %}
+  </div>
+</footer>
+
+<script>
+  // mobile nav toggle
+  const navToggle = document.getElementById('navToggle');
+  const navMenu = document.getElementById('navMenu');
+  function setNav(open){
+    document.body.classList.toggle('nav-open', open);
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+  navToggle.addEventListener('click', () => setNav(!document.body.classList.contains('nav-open')));
+  navMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setNav(false)));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setNav(false); });
+
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); }
+  }), { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  const gImgs = [...document.querySelectorAll('.gitem img')];
+  let lbIndex = 0;
+  const lb = document.getElementById('lightbox'), lbImg = document.getElementById('lbImg'), lbCount = document.getElementById('lbCount');
+  gImgs.forEach((img, i) => img.parentElement.addEventListener('click', () => openLb(i)));
+  function openLb(i){ lbIndex=i; lbImg.src=gImgs[i].src; lbCount.textContent=(i+1)+' / '+gImgs.length; lb.classList.add('open'); document.body.style.overflow='hidden'; }
+  function closeLb(){ lb.classList.remove('open'); document.body.style.overflow=''; }
+  function navLb(d){ openLb((lbIndex+d+gImgs.length)%gImgs.length); }
+  document.addEventListener('keydown', e => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key==='Escape') closeLb();
+    if (e.key==='ArrowLeft') navLb(-1);
+    if (e.key==='ArrowRight') navLb(1);
+  });
+
+  async function subscribe(ev){
+    ev.preventDefault();
+    const form = ev.target, email = form.email.value;
+    try{
+      const r = await fetch('/subscribe', {method:'POST', headers:{'X-Requested-With':'fetch','Content-Type':'application/x-www-form-urlencoded'}, body:'email='+encodeURIComponent(email)});
+      const j = await r.json();
+      document.getElementById('subMsg').textContent = j.ok ? "Thank you — you're on the list. ✦" : "Please enter a valid email.";
+      if (j.ok) form.reset();
+    }catch(_){ document.getElementById('subMsg').textContent = "Something went wrong."; }
+    return false;
+  }
+</script>
+</body>
+</html>

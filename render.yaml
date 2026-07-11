@@ -1,0 +1,26 @@
+# One-click deploy config for Render (https://render.com).
+# In the Render dashboard: New + → Blueprint → point at this repo.
+# A persistent disk is REQUIRED — without it, uploaded photos and the database
+# are wiped on every redeploy.
+services:
+  - type: web
+    name: field-notes
+    runtime: python
+    plan: starter            # starter has persistent disks; "free" does NOT
+    buildCommand: "pip install -r requirements.txt"
+    # seed runs at START (not build): the persistent disk is only mounted on the
+    # running instance. seed.py is idempotent and skips when there is nothing to do.
+    startCommand: "python seed.py; gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT --timeout 120"
+    envVars:
+      - key: FN_DB_PATH
+        value: /var/data/app.db
+      - key: FN_UPLOAD_DIR
+        value: /var/data/uploads
+      - key: FN_HTTPS              # Secure cookies + HSTS (Render serves over HTTPS)
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+    disk:
+      name: field-notes-data
+      mountPath: /var/data
+      sizeGB: 5

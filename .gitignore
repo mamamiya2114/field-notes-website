@@ -1,0 +1,20 @@
+# runtime data — never commit
+data/
+uploads/
+logs/
+run/
+*.db
+*.db-journal
+*.db-wal
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# os
+.DS_Store
+
+# secrets
+.env

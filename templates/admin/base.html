@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Admin{% endblock %} · Field Notes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&family=Sarabun:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{--ink:#1a1714;--paper:#faf7f2;--card:#fff;--accent:#b5542d;--muted:#6e675e;
     --line:#e3ddd2;--ok:#2f7d4f;--warn:#b5542d;
-    --serif:'Fraunces',Georgia,serif;--sans:'Inter',-apple-system,sans-serif;--thai:'Sarabun',var(--sans);}
+    --serif:'Fraunces',Georgia,serif;--sans:'Inter',-apple-system,sans-serif;}
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#f4f0e9;color:var(--ink);font-family:var(--thai);line-height:1.6;-webkit-font-smoothing:antialiased}
+  body{background:#f4f0e9;color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
   a{color:inherit}
   .top{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;
       padding:.9rem 1.4rem;background:rgba(250,247,242,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
@@ -46,7 +46,7 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.4rem;margin-bottom:1.3rem}
   label{display:block;font-size:.78rem;font-weight:600;letter-spacing:.03em;color:var(--muted);text-transform:uppercase;margin-bottom:.35rem}
   input[type=text],input[type=password],input[type=email],textarea,select{
-      width:100%;padding:.6rem .8rem;border:1px solid var(--line);border-radius:9px;font-family:var(--thai);
+      width:100%;padding:.6rem .8rem;border:1px solid var(--line);border-radius:9px;font-family:var(--sans);
       font-size:.95rem;background:#fff;outline:none;color:var(--ink)}
   input:focus,textarea:focus,select:focus{border-color:var(--accent)}
   textarea{resize:vertical;min-height:3.2rem;line-height:1.7}
@@ -68,13 +68,13 @@
 <body>
 {% block top %}
 <div class="top">
-  <a class="brand" href="/admin">Field<span>Notes</span> · หลังบ้าน</a>
+  <a class="brand" href="/admin">Field<span>Notes</span> · Admin</a>
   <nav>
-    <a href="/admin" class="{{ 'active' if active=='essays' }}">เรื่องทั้งหมด</a>
-    <a href="/admin/site" class="{{ 'active' if active=='site' }}">ปรับแต่งเว็บ</a>
-    <a href="/admin/stats" class="{{ 'active' if active=='stats' }}">สถิติผู้เข้าชม</a>
-    <a href="/" target="_blank">ดูเว็บจริง ↗</a>
-    <form method="post" action="/admin/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm">ออก</button></form>
+    <a href="/admin" class="{{ 'active' if active=='essays' }}">Essays</a>
+    <a href="/admin/site" class="{{ 'active' if active=='site' }}">Site content</a>
+    <a href="/admin/stats" class="{{ 'active' if active=='stats' }}">Analytics</a>
+    <a href="/" target="_blank">View site ↗</a>
+    <form method="post" action="/admin/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm">Sign out</button></form>
   </nav>
 </div>
 {% endblock %}
@@ -94,7 +94,7 @@
     var label = btn.textContent.trim();
     btn.dataset.label = label;
     btn.classList.add('is-loading');
-    if (label) btn.textContent = ' กำลังทำงาน…';
+    if (label) btn.textContent = ' Working…';
   }, true);
 </script>
 </body>

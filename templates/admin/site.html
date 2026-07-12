@@ -1,13 +1,18 @@
 {% extends "admin/base.html" %}
 {% set active = 'site' %}
-{% block title %}ปรับแต่งหน้าเว็บ{% endblock %}
+{% block title %}Site content{% endblock %}
 {% block body %}
 <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem">
   <div>
-    <h1 class="page">ปรับแต่งหน้าเว็บหลัก</h1>
-    <div class="sub" style="margin:0">แก้ข้อความและรูปบนหน้าแรก — ส่วนแนะนำตัว หัวเรื่อง ฯลฯ · เว้นช่องว่างไว้ = ใช้ค่าเริ่มต้น</div>
+    <h1 class="page">Site content</h1>
+    <div class="sub" style="margin:0">Edit the landing page — hero, about, footer · leave a field blank to use the default</div>
   </div>
-  <a class="btn btn-sm" href="/" target="_blank">ดูเว็บจริง ↗</a>
+  <a class="btn btn-sm" href="/" target="_blank">View site ↗</a>
+</div>
+
+<div class="flash" style="border-left-color:#8a8378">
+  ✎ Changes are <b>previewed on the real landing page first</b> — nothing goes live until you press
+  “Confirm &amp; save” on the preview.
 </div>
 
 <form method="post" action="/admin/site/save" enctype="multipart/form-data">
@@ -15,43 +20,43 @@
 
 <!-- ---------- Hero ---------- -->
 <div class="card">
-  <div class="sec-title">ส่วนหัว (Hero) — บนสุดของหน้าแรก</div>
+  <div class="sec-title">Hero — top of the landing page</div>
   <div class="row">
-    <div class="field"><label>Kicker (บรรทัดเล็กสีส้ม)</label>
+    <div class="field"><label>Kicker (small orange line)</label>
       <input type="text" name="hero_kicker" value="{{ site.hero_kicker }}" placeholder="{{ defaults.hero_kicker }}"></div>
-    <div class="field"><label>คำบรรยายภาพปก</label>
+    <div class="field"><label>Cover photo caption</label>
       <input type="text" name="hero_caption" value="{{ site.hero_caption }}" placeholder="{{ defaults.hero_caption }}"></div>
   </div>
-  <div class="field"><label>พาดหัวใหญ่</label>
+  <div class="field"><label>Headline</label>
     <input type="text" name="hero_title" value="{{ site.hero_title }}" placeholder="{{ defaults.hero_title }}">
-    <div class="hint">ใส่ <b>*ดอกจัน*</b> คร่อมคำเพื่อทำเป็นตัวเอียงสีส้ม เช่น <code>Stories told in *light*</code></div></div>
-  <div class="field"><label>ข้อความแนะนำใต้พาดหัว</label>
+    <div class="hint">Wrap a word in <b>*asterisks*</b> for the orange italic accent, e.g. <code>Stories told in *light*</code></div></div>
+  <div class="field"><label>Intro line under the headline</label>
     <textarea name="hero_lede" rows="3" placeholder="{{ defaults.hero_lede }}">{{ site.hero_lede }}</textarea></div>
   <div class="field" style="margin-bottom:0">
-    <label>รูปปกหน้าแรก</label>
+    <label>Cover photo</label>
     <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
       <img src="{{ site.hero_image }}" alt="hero" style="width:200px;height:118px;object-fit:cover;border-radius:10px;flex:none">
       <input type="file" name="hero_image" accept="image/*">
     </div>
-    <div class="hint">อัปโหลดใหม่เพื่อเปลี่ยน (ไม่เลือก = คงรูปเดิม)</div>
+    <div class="hint">Upload to replace (leave empty to keep the current photo)</div>
   </div>
 </div>
 
 <!-- ---------- About ---------- -->
 <div class="card">
-  <div class="sec-title">ส่วนแนะนำตัว (About)</div>
+  <div class="sec-title">About — the introduction section</div>
   <div class="row">
     <div class="field"><label>Kicker</label>
       <input type="text" name="about_kicker" value="{{ site.about_kicker }}" placeholder="{{ defaults.about_kicker }}"></div>
-    <div class="field"><label>ลายเซ็น</label>
+    <div class="field"><label>Signature</label>
       <input type="text" name="about_signature" value="{{ site.about_signature }}" placeholder="{{ defaults.about_signature }}"></div>
   </div>
-  <div class="field"><label>หัวข้อ</label>
+  <div class="field"><label>Heading</label>
     <input type="text" name="about_heading" value="{{ site.about_heading }}" placeholder="{{ defaults.about_heading }}"></div>
-  <div class="field"><label>เนื้อหาแนะนำตัว — ย่อหน้าคั่นด้วยบรรทัดว่าง</label>
+  <div class="field"><label>About text — paragraphs separated by a blank line</label>
     <textarea name="about_body" rows="6" placeholder="{{ defaults.about_body }}">{{ site.about_body }}</textarea></div>
   <div class="field" style="margin-bottom:0">
-    <label>รูปแนะนำตัว</label>
+    <label>Portrait photo</label>
     <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
       <img src="{{ site.about_image }}" alt="about" style="width:110px;height:138px;object-fit:cover;border-radius:10px;flex:none">
       <input type="file" name="about_image" accept="image/*">
@@ -59,32 +64,23 @@
   </div>
 </div>
 
-<!-- ---------- Subscribe ---------- -->
-<div class="card">
-  <div class="sec-title">ส่วนสมัครรับข่าว (Subscribe)</div>
-  <div class="field"><label>หัวข้อ</label>
-    <input type="text" name="subscribe_heading" value="{{ site.subscribe_heading }}" placeholder="{{ defaults.subscribe_heading }}"></div>
-  <div class="field" style="margin-bottom:0"><label>คำอธิบาย</label>
-    <input type="text" name="subscribe_tagline" value="{{ site.subscribe_tagline }}" placeholder="{{ defaults.subscribe_tagline }}"></div>
-</div>
-
 <!-- ---------- Footer ---------- -->
 <div class="card">
-  <div class="sec-title">ส่วนท้าย (Footer)</div>
-  <div class="field"><label>ข้อความท้ายเว็บ (หลัง © ปี Field Notes ·)</label>
+  <div class="sec-title">Footer</div>
+  <div class="field"><label>Footer line (after © year Field Notes ·)</label>
     <input type="text" name="footer_tagline" value="{{ site.footer_tagline }}" placeholder="{{ defaults.footer_tagline }}"></div>
   <div class="row" style="margin-bottom:0">
-    <div class="field" style="margin-bottom:0"><label>ลิงก์ Instagram (URL)</label>
+    <div class="field" style="margin-bottom:0"><label>Instagram link (URL)</label>
       <input type="text" name="footer_instagram" value="{{ site.footer_instagram }}" placeholder="https://instagram.com/…"></div>
-    <div class="field" style="margin-bottom:0"><label>อีเมลติดต่อ</label>
+    <div class="field" style="margin-bottom:0"><label>Contact email</label>
       <input type="text" name="footer_contact" value="{{ site.footer_contact }}" placeholder="you@email.com"></div>
   </div>
-  <div class="hint">เว้นว่าง = ไม่แสดงลิงก์นั้น</div>
+  <div class="hint">Leave blank to show plain text without a link</div>
 </div>
 
 <div style="position:sticky;bottom:0;background:linear-gradient(transparent,#f4f0e9 40%);padding:1rem 0;display:flex;gap:.6rem">
-  <button class="btn btn-primary" type="submit">บันทึกการเปลี่ยนแปลง</button>
-  <a class="btn" href="/" target="_blank">ดูเว็บจริง ↗</a>
+  <button class="btn btn-primary" type="submit">Preview changes</button>
+  <a class="btn" href="/" target="_blank">View site ↗</a>
 </div>
 </form>
 

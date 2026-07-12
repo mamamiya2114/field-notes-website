@@ -1,90 +1,90 @@
 {% extends "admin/base.html" %}
 {% set active = 'essays' %}
-{% block title %}แก้ไข · {{ essay.title_th }}{% endblock %}
+{% block title %}Edit · {{ essay.title.replace('\n', ' ') }}{% endblock %}
 {% block body %}
 
 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem">
   <div>
-    <a href="/admin" class="muted" style="font-size:.85rem;text-decoration:none">← เรื่องทั้งหมด</a>
-    <h1 class="page" style="margin-top:.3rem">{{ essay.title_th or 'เรื่องใหม่' }}</h1>
+    <a href="/admin" class="muted" style="font-size:.85rem;text-decoration:none">← All essays</a>
+    <h1 class="page" style="margin-top:.3rem">{{ essay.title.replace('\n', ' ') or 'Untitled essay' }}</h1>
     <div class="sub" style="margin:0">
-      {% if essay.status=='published' %}<span class="pill pill-pub">เผยแพร่</span>
-      {% else %}<span class="pill pill-draft">ฉบับร่าง</span>{% endif %}
+      {% if essay.status=='published' %}<span class="pill pill-pub">Published</span>
+      {% else %}<span class="pill pill-draft">Draft</span>{% endif %}
       <span class="muted" style="margin-left:.5rem">/essay/{{ essay.slug }}</span>
     </div>
   </div>
   <div style="display:flex;gap:.5rem;align-items:center">
-    <a class="btn btn-sm" href="/essay/{{ essay.slug }}" target="_blank">ดูตัวอย่าง ↗</a>
+    <a class="btn btn-sm" href="/essay/{{ essay.slug }}" target="_blank">View page ↗</a>
     <form method="post" action="/admin/essays/{{ essay.id }}/publish" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if essay.status=='published' %}
         <input type="hidden" name="action" value="unpublish">
-        <button class="btn btn-sm">เปลี่ยนเป็นร่าง</button>
+        <button class="btn btn-sm">Unpublish</button>
       {% else %}
         <input type="hidden" name="action" value="publish">
-        <button class="btn btn-sm btn-accent">เผยแพร่</button>
+        <button class="btn btn-sm btn-accent">Publish</button>
       {% endif %}
     </form>
   </div>
+</div>
+
+<div class="flash" style="border-left-color:#8a8378">
+  ✎ Every content change is <b>previewed on the real page first</b> — nothing goes live until you press
+  “Confirm &amp; save” on the preview.
 </div>
 
 <!-- ---------- meta ---------- -->
 <form method="post" action="/admin/essays/{{ essay.id }}/save">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="card">
+  <div class="field"><label>Title</label>
+    <textarea name="title" rows="2" placeholder="Life that does not stop…">{{ essay.title }}</textarea>
+    <div class="hint">Press Enter for a manual line break on the cover</div></div>
   <div class="row">
-    <div class="field"><label>ชื่อเรื่อง (ไทย)</label>
-      <textarea name="title_th" rows="2" placeholder="ขึ้นบรรทัดใหม่ = เว้นบรรทัดบนปก">{{ essay.title_th }}</textarea>
-      <div class="hint">กด Enter เพื่อขึ้นบรรทัดใหม่บนหน้าปก</div></div>
-    <div class="field"><label>ชื่อเรื่อง / คำโปรย (อังกฤษ)</label>
-      <textarea name="title_en" rows="2" placeholder="Life that does not stop…">{{ essay.title_en }}</textarea>
-      <div class="hint">แสดงเป็นบรรทัดเอียงใต้ชื่อไทยบนหน้าปก</div></div>
-  </div>
-  <div class="row">
-    <div class="field"><label>Kicker (บรรทัดเล็กเหนือชื่อ)</label>
+    <div class="field"><label>Kicker (small line above the title)</label>
       <input type="text" name="kicker" value="{{ essay.kicker }}" placeholder="Photo Essay № 01 — Skardu, Pakistan"></div>
-    <div class="field"><label>สถานที่</label>
+    <div class="field"><label>Location</label>
       <input type="text" name="location" value="{{ essay.location }}" placeholder="Skardu, Pakistan"></div>
   </div>
   <div class="row">
-    <div class="field"><label>วันที่ (ข้อความ)</label>
-      <input type="text" name="date_text" value="{{ essay.date_text }}" placeholder="พฤษภาคม 2568"></div>
-    <div class="field"><label>ผู้เขียน (ลายเซ็น)</label>
+    <div class="field"><label>Date (free text)</label>
+      <input type="text" name="date_text" value="{{ essay.date_text }}" placeholder="May 2025"></div>
+    <div class="field"><label>Author (signature)</label>
       <input type="text" name="signature" value="{{ essay.signature }}" placeholder="BUN"></div>
   </div>
-  <div class="field"><label>คำโปรยสั้น (อังกฤษ) — สำหรับการ์ดหน้าแรก</label>
-    <textarea name="summary_en" rows="2" placeholder="Eighteen photographs of ordinary life continuing quietly…">{{ essay.summary_en }}</textarea></div>
-  <div class="field"><label>บทนำ (intro) — ย่อหน้าคั่นด้วยบรรทัดว่าง</label>
+  <div class="field"><label>Summary — shown on the landing-page card</label>
+    <textarea name="summary" rows="2" placeholder="Eighteen photographs of ordinary life continuing quietly…">{{ essay.summary }}</textarea></div>
+  <div class="field"><label>Intro — paragraphs separated by a blank line</label>
     <textarea name="lede" rows="5">{{ essay.lede }}</textarea>
-    <div class="hint">ย่อหน้าแรกจะขึ้นต้นด้วยตัวอักษรใหญ่ (drop cap) อัตโนมัติ</div></div>
-  <div class="field"><label>บทส่งท้าย (outro) — ย่อหน้าคั่นด้วยบรรทัดว่าง</label>
+    <div class="hint">The first paragraph automatically gets a drop cap</div></div>
+  <div class="field"><label>Closing — paragraphs separated by a blank line</label>
     <textarea name="outro" rows="4">{{ essay.outro }}</textarea></div>
   <div class="field"><label>Slug (URL)</label>
     <input type="text" name="slug" value="{{ essay.slug }}">
-    <div class="hint">ที่อยู่หน้าเว็บ: /essay/<b>{{ essay.slug }}</b> — เปลี่ยนได้แต่ระวังลิงก์เดิมเสีย</div></div>
-  <button class="btn btn-primary" type="submit">บันทึกข้อมูล</button>
+    <div class="hint">Page address: /essay/<b>{{ essay.slug }}</b> — changing it breaks old links</div></div>
+  <button class="btn btn-primary" type="submit">Preview changes</button>
 </div>
 </form>
 
 <!-- ---------- hero ---------- -->
 <div class="card">
-  <label style="margin-bottom:.7rem">รูปปก (Hero)</label>
+  <label style="margin-bottom:.7rem">Cover image (hero)</label>
   <div style="display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap">
     {% if essay.hero_image %}
       <img src="/uploads/{{ essay.hero_image }}" alt="hero" style="width:220px;height:130px;object-fit:cover;border-radius:10px">
     {% else %}
-      <div style="width:220px;height:130px;border-radius:10px;background:#e9e2d6;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem">ยังไม่มีรูปปก</div>
+      <div style="width:220px;height:130px;border-radius:10px;background:#e9e2d6;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem">No cover yet</div>
     {% endif %}
     <form method="post" action="/admin/essays/{{ essay.id }}/hero" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="file" name="hero" accept="image/*" required>
-      <button class="btn" type="submit">อัปโหลดรูปปก</button>
+      <button class="btn" type="submit">Upload &amp; preview</button>
     </form>
   </div>
 </div>
 
 <!-- ---------- plates ---------- -->
-<h2 id="plates" style="font-family:var(--serif);font-weight:400;font-size:1.4rem;margin:2rem 0 1rem">แผ่นภาพ (Plates) · {{ plates|length }}</h2>
+<h2 id="plates" style="font-family:var(--serif);font-weight:400;font-size:1.4rem;margin:2rem 0 1rem">Plates · {{ plates|length }}</h2>
 
 {% for p in plates %}
 <div class="card">
@@ -96,7 +96,7 @@
         <form method="post" action="/admin/plates/{{ p.id }}/replace" enctype="multipart/form-data" style="display:flex;gap:.3rem">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="file" name="image" accept="image/*" required style="font-size:.75rem">
-          <button class="btn btn-sm" type="submit">เปลี่ยน</button>
+          <button class="btn btn-sm" type="submit">Replace</button>
         </form>
       {% else %}
         <div style="width:220px;height:90px;border-radius:10px;background:#1a1714;color:#e8a87b;display:flex;align-items:center;justify-content:center;font-style:italic;font-family:var(--serif)">✦ Interlude</div>
@@ -105,29 +105,27 @@
     <div style="flex:1;min-width:280px">
       <form method="post" action="/admin/plates/{{ p.id }}/update">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="field" style="margin-bottom:.7rem"><label>คำบรรยาย (ไทย)</label>
-          <textarea name="caption_th" rows="2">{{ p.caption_th }}</textarea></div>
-        <div class="field" style="margin-bottom:.7rem"><label>คำบรรยาย (อังกฤษ — ไม่บังคับ)</label>
-          <textarea name="caption_en" rows="2">{{ p.caption_en }}</textarea></div>
+        <div class="field" style="margin-bottom:.7rem"><label>Caption</label>
+          <textarea name="caption" rows="2">{{ p.caption }}</textarea></div>
         <div style="display:flex;gap:.8rem;align-items:flex-end;flex-wrap:wrap">
           {% if p.kind == 'photo' %}
-          <div style="width:160px"><label>ขนาดภาพ</label>
+          <div style="width:160px"><label>Size</label>
             <select name="layout">
-              <option value="normal" {{ 'selected' if p.layout=='normal' }}>ปกติ</option>
-              <option value="full" {{ 'selected' if p.layout=='full' }}>เต็มจอ (full)</option>
+              <option value="normal" {{ 'selected' if p.layout=='normal' }}>Normal</option>
+              <option value="full" {{ 'selected' if p.layout=='full' }}>Full-bleed</option>
             </select></div>
-          <div style="flex:1;min-width:160px"><label>Alt text (อังกฤษ)</label>
+          <div style="flex:1;min-width:160px"><label>Alt text</label>
             <input type="text" name="alt" value="{{ p.alt }}"></div>
           {% else %}
           <input type="hidden" name="layout" value="normal"><input type="hidden" name="alt" value="">
           {% endif %}
-          <button class="btn btn-sm btn-primary" type="submit">บันทึก</button>
+          <button class="btn btn-sm btn-primary" type="submit">Preview changes</button>
         </div>
       </form>
       <div style="display:flex;gap:.4rem;margin-top:.8rem;border-top:1px solid var(--line);padding-top:.8rem">
-        {% if not loop.first %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up"><button class="btn btn-sm">↑ ขึ้น</button></form>{% endif %}
-        {% if not loop.last %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down"><button class="btn btn-sm">↓ ลง</button></form>{% endif %}
-        <form method="post" action="/admin/plates/{{ p.id }}/delete" class="inline" onsubmit="return confirm('ลบแผ่นภาพนี้?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger">ลบ</button></form>
+        {% if not loop.first %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up"><button class="btn btn-sm">↑ Up</button></form>{% endif %}
+        {% if not loop.last %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down"><button class="btn btn-sm">↓ Down</button></form>{% endif %}
+        <form method="post" action="/admin/plates/{{ p.id }}/delete" class="inline" onsubmit="return confirm('Delete this plate?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger">Delete</button></form>
       </div>
     </div>
   </div>
@@ -136,41 +134,37 @@
 
 <!-- add photo plate -->
 <div class="card" style="border-style:dashed">
-  <label style="margin-bottom:.7rem">+ เพิ่มแผ่นภาพใหม่</label>
+  <label style="margin-bottom:.7rem">+ Add a photo plate</label>
   <form method="post" action="/admin/essays/{{ essay.id }}/plates" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="kind" value="photo">
-    <div class="field"><label>รูปภาพ</label><input type="file" name="image" accept="image/*" required>
-      <div class="hint">อัปโหลดรูปต้นฉบับได้เลย ระบบจะย่อ/บีบอัดให้อัตโนมัติ (สูงสุด 1900px, JPEG)</div></div>
-    <div class="row">
-      <div class="field"><label>คำบรรยาย (ไทย)</label><textarea name="caption_th" rows="2"></textarea></div>
-      <div class="field"><label>คำบรรยาย (อังกฤษ — ไม่บังคับ)</label><textarea name="caption_en" rows="2"></textarea></div>
-    </div>
+    <div class="field"><label>Image</label><input type="file" name="image" accept="image/*" required>
+      <div class="hint">Upload the original file — it is resized and compressed automatically (max 1900px, JPEG)</div></div>
+    <div class="field"><label>Caption</label><textarea name="caption" rows="2"></textarea></div>
     <div style="display:flex;gap:.8rem;align-items:flex-end">
-      <div style="width:180px"><label>ขนาดภาพ</label>
-        <select name="layout"><option value="normal">ปกติ</option><option value="full">เต็มจอ (full)</option></select></div>
-      <button class="btn btn-accent" type="submit">เพิ่มแผ่นภาพ</button>
+      <div style="width:180px"><label>Size</label>
+        <select name="layout"><option value="normal">Normal</option><option value="full">Full-bleed</option></select></div>
+      <button class="btn btn-accent" type="submit">Upload &amp; preview</button>
     </div>
   </form>
 </div>
 
 <!-- add interlude -->
 <div class="card" style="border-style:dashed">
-  <label style="margin-bottom:.7rem">+ เพิ่มข้อความคั่น (Interlude) — คำคมกลางเรื่อง ไม่มีรูป</label>
+  <label style="margin-bottom:.7rem">+ Add an interlude — a pull-quote between chapters, no image</label>
   <form method="post" action="/admin/essays/{{ essay.id }}/plates">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="kind" value="interlude">
-    <div class="field"><label>ข้อความ (ไทย)</label><textarea name="caption_th" rows="2"></textarea></div>
-    <div class="field"><label>ข้อความ (อังกฤษ — ไม่บังคับ)</label><textarea name="caption_en" rows="2"></textarea></div>
-    <button class="btn" type="submit">เพิ่มข้อความคั่น</button>
+    <div class="field"><label>Text</label><textarea name="caption" rows="2"></textarea></div>
+    <button class="btn" type="submit">Preview</button>
   </form>
 </div>
 
 <div class="card" style="border:1px solid #ecd9d2;background:#fbf3f0">
-  <label style="color:#c0392b">เขตอันตราย</label>
-  <form method="post" action="/admin/essays/{{ essay.id }}/delete" onsubmit="return confirm('ลบเรื่องนี้ทั้งหมด รวมรูปทุกใบ? ย้อนกลับไม่ได้')">
+  <label style="color:#c0392b">Danger zone</label>
+  <form method="post" action="/admin/essays/{{ essay.id }}/delete" onsubmit="return confirm('Delete this essay and all of its images? This cannot be undone.')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-sm btn-danger" type="submit">ลบเรื่องนี้ถาวร</button>
+    <button class="btn btn-sm btn-danger" type="submit">Delete this essay permanently</button>
   </form>
 </div>
 {% endblock %}

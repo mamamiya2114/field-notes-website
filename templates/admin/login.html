@@ -1,28 +1,28 @@
 {% extends "admin/base.html" %}
-{% block title %}เข้าสู่ระบบ{% endblock %}
+{% block title %}Sign in{% endblock %}
 {% block top %}{% endblock %}
 {% block body %}
 <div style="max-width:380px;margin:8vh auto 0">
   <div style="text-align:center;margin-bottom:1.6rem">
     <div class="brand" style="font-size:1.6rem;font-family:var(--serif)">Field<span style="color:var(--accent)">Notes</span></div>
-    <div class="muted" style="font-size:.9rem;margin-top:.3rem">ระบบจัดการ photo essay</div>
+    <div class="muted" style="font-size:.9rem;margin-top:.3rem">Photo essay management</div>
   </div>
   <div class="card">
     {% if needs_setup %}
-      <h1 class="page" style="font-size:1.3rem">ตั้งรหัสผ่านครั้งแรก</h1>
-      <p class="sub" style="margin-bottom:1.2rem">นี่คือการเข้าใช้ครั้งแรก — ตั้งรหัสผ่านสำหรับเจ้าของเว็บ (อย่างน้อย 6 ตัวอักษร) เก็บไว้ให้ดีนะครับ</p>
+      <h1 class="page" style="font-size:1.3rem">Set your password</h1>
+      <p class="sub" style="margin-bottom:1.2rem">This is the first sign-in — choose the owner password (at least 8 characters) and keep it safe.</p>
     {% else %}
-      <h1 class="page" style="font-size:1.3rem">เข้าสู่ระบบ</h1>
-      <p class="sub" style="margin-bottom:1.2rem">ใส่รหัสผ่านเจ้าของเว็บ</p>
+      <h1 class="page" style="font-size:1.3rem">Sign in</h1>
+      <p class="sub" style="margin-bottom:1.2rem">Enter the owner password</p>
     {% endif %}
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">
-        <label>รหัสผ่าน</label>
-        <input type="password" name="password" autofocus required {% if needs_setup %}minlength="6"{% endif %}>
+        <label>Password</label>
+        <input type="password" name="password" autofocus required {% if needs_setup %}minlength="8"{% endif %}>
       </div>
       <button class="btn btn-primary" type="submit" style="width:100%">
-        {{ 'ตั้งรหัสผ่าน & เข้าใช้' if needs_setup else 'เข้าสู่ระบบ' }}
+        {{ 'Set password & sign in' if needs_setup else 'Sign in' }}
       </button>
     </form>
   </div>

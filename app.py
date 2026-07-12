@@ -1,7 +1,8 @@
 """Field Notes CMS — Flask app.
 
 Public site (landing + essays) and a password-protected admin where the owner
-uploads photos, writes Thai/English captions, and publishes essays. Every public
+uploads photos, writes captions, and publishes essays. Content edits are
+staged and previewed on the real page before they are confirmed. Every public
 page view is logged through the privacy-friendly analytics in analytics.py and
 shown on the admin dashboard.
 
@@ -10,6 +11,7 @@ Production:    gunicorn app:app
 """
 import os
 import re
+import json
 import time
 import hmac
 import secrets
@@ -18,7 +20,7 @@ import datetime
 from urllib.parse import urlparse
 
 from flask import (Flask, g, request, session, redirect, url_for, abort,
-                   render_template, send_from_directory, flash, jsonify)
+                   render_template, send_from_directory, flash)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
@@ -60,13 +62,9 @@ def csrf_token():
 def csrf_protect():
     """Reject state-changing requests without a valid token.
 
-    Combined with SameSite=Lax cookies this gives layered CSRF defense. /subscribe
-    is public (no privileged action) and is exempted; everything else that mutates
-    state must present the session token.
+    Combined with SameSite=Lax cookies this gives layered CSRF defense.
     """
     if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
-        return
-    if request.path == "/subscribe":
         return
     sent = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
     # compare as bytes: compare_digest raises TypeError on non-ASCII str input
@@ -133,8 +131,6 @@ SITE_DEFAULTS = {
                   "want to go deeper.",
     "about_signature": "— BUN",
     "about_image": "/static/images/about.jpg",
-    "subscribe_heading": "Get new essays by email",
-    "subscribe_tagline": "One letter a month. Photographs first, words second. No noise.",
     "footer_tagline": "A photo essay journal by BUN",
     "footer_instagram": "",
     "footer_contact": "",
@@ -155,6 +151,59 @@ def get_site():
     except Exception:
         pass
     return data
+
+
+# --------------------------------------------------------------------------
+# staged edits — every content edit is previewed on the real page first
+# --------------------------------------------------------------------------
+
+def stage_pending(kind, payload):
+    """Store an unconfirmed edit; only its token lives in the session (cookie
+    sessions are ~4KB, essay text does not fit — the payload goes in SQLite)."""
+    token = secrets.token_hex(16)
+    cur = db.get_db()
+    cur.execute("DELETE FROM pending_edits WHERE created_at < datetime('now','-1 day')")
+    old = session.pop("pending_token", None)
+    if old:
+        _discard_pending_files(old)
+        cur.execute("DELETE FROM pending_edits WHERE token=?", (old,))
+    cur.execute("INSERT INTO pending_edits(token,kind,payload) VALUES(?,?,?)",
+                (token, kind, json.dumps(payload, ensure_ascii=False)))
+    cur.commit()
+    session["pending_token"] = token
+    return token
+
+
+def load_pending():
+    token = session.get("pending_token")
+    if not token:
+        return None
+    row = db.get_db().execute(
+        "SELECT * FROM pending_edits WHERE token=?", (token,)).fetchone()
+    if not row:
+        session.pop("pending_token", None)
+        return None
+    return {"token": token, "kind": row["kind"], "payload": json.loads(row["payload"])}
+
+
+def _discard_pending_files(token):
+    """Delete any image a staged (never-confirmed) edit had already uploaded."""
+    row = db.get_db().execute(
+        "SELECT * FROM pending_edits WHERE token=?", (token,)).fetchone()
+    if row:
+        payload = json.loads(row["payload"])
+        for rel in payload.get("_new_files", []):
+            images.delete_upload(rel)
+
+
+def clear_pending(discard_files=False):
+    token = session.pop("pending_token", None)
+    if token:
+        if discard_files:
+            _discard_pending_files(token)
+        cur = db.get_db()
+        cur.execute("DELETE FROM pending_edits WHERE token=?", (token,))
+        cur.commit()
 
 
 # --------------------------------------------------------------------------
@@ -274,12 +323,12 @@ def login():
     ip = analytics._client_ip(request)
     if request.method == "POST":
         if _login_blocked(ip):
-            flash("พยายามเข้าระบบบ่อยเกินไป — รอสักครู่แล้วลองใหม่")
+            flash("Too many attempts — please wait a moment and try again.")
             return render_template("admin/login.html", needs_setup=needs_setup), 429
         password = request.form.get("password", "")
         if needs_setup:
             if len(password) < 8:
-                flash("ตั้งรหัสผ่านอย่างน้อย 8 ตัวอักษร")
+                flash("Password must be at least 8 characters.")
             else:
                 db.set_setting("admin_password",
                                generate_password_hash(password, method="pbkdf2:sha256"))
@@ -295,7 +344,7 @@ def login():
             return redirect(nxt if _is_safe_next(nxt) else url_for("dashboard"))
         else:
             _record_login_fail(ip)
-            flash("รหัสผ่านไม่ถูกต้อง")
+            flash("Incorrect password.")
     return render_template("admin/login.html", needs_setup=needs_setup)
 
 
@@ -324,12 +373,12 @@ def dashboard():
 @app.route("/admin/essays/new", methods=["POST"])
 @login_required
 def essay_new():
-    title_th = request.form.get("title_th", "").strip() or "เรื่องใหม่"
-    slug = unique_slug(request.form.get("title_en") or title_th)
+    title = request.form.get("title", "").strip() or "Untitled essay"
+    slug = unique_slug(title)
     cur = db.get_db()
     cur.execute(
-        "INSERT INTO essays(slug, title_th, kicker) VALUES(?,?,?)",
-        (slug, title_th, "Photo Essay"),
+        "INSERT INTO essays(slug, title, kicker) VALUES(?,?,?)",
+        (slug, title, "Photo Essay"),
     )
     cur.commit()
     eid = cur.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
@@ -349,26 +398,15 @@ def essay_edit(essay_id):
 @app.route("/admin/essays/<int:essay_id>/save", methods=["POST"])
 @login_required
 def essay_save(essay_id):
-    essay = get_essay(essay_id)
-    if not essay:
+    if not get_essay(essay_id):
         abort(404)
     f = request.form
-    new_slug = essay["slug"]
-    if f.get("slug", "").strip():
-        new_slug = unique_slug(f["slug"], essay_id)
-    db.get_db().execute(
-        "UPDATE essays SET title_th=?, title_en=?, kicker=?, location=?, date_text=?, "
-        "summary_en=?, lede=?, outro=?, signature=?, slug=?, updated_at=datetime('now') "
-        "WHERE id=?",
-        (f.get("title_th", "").strip(), f.get("title_en", "").strip(),
-         f.get("kicker", "").strip(), f.get("location", "").strip(),
-         f.get("date_text", "").strip(), f.get("summary_en", "").strip(),
-         f.get("lede", "").strip(), f.get("outro", "").strip(),
-         f.get("signature", "").strip() or "BUN", new_slug, essay_id),
-    )
-    db.get_db().commit()
-    flash("บันทึกแล้ว")
-    return redirect(url_for("essay_edit", essay_id=essay_id))
+    fields = {k: f.get(k, "").strip() for k in
+              ("title", "kicker", "location", "date_text", "summary",
+               "lede", "outro", "signature", "slug")}
+    fields["signature"] = fields["signature"] or "BUN"
+    stage_pending("essay_meta", {"essay_id": essay_id, "fields": fields})
+    return redirect(url_for("preview_pending"))
 
 
 @app.route("/admin/essays/<int:essay_id>/hero", methods=["POST"])
@@ -378,20 +416,16 @@ def essay_hero(essay_id):
     if not essay:
         abort(404)
     file = request.files.get("hero")
-    if file and file.filename:
-        try:
-            rel = images.process_upload(file, essay_id, role="hero")
-        except ValueError as e:
-            flash(str(e))
-            return redirect(url_for("essay_edit", essay_id=essay_id))
-        if essay["hero_image"]:
-            images.delete_upload(essay["hero_image"])
-        db.get_db().execute(
-            "UPDATE essays SET hero_image=?, updated_at=datetime('now') WHERE id=?",
-            (rel, essay_id))
-        db.get_db().commit()
-        flash("อัปเดตรูปปกแล้ว")
-    return redirect(url_for("essay_edit", essay_id=essay_id))
+    if not (file and file.filename):
+        return redirect(url_for("essay_edit", essay_id=essay_id))
+    try:
+        rel = images.process_upload(file, essay_id, role="hero")
+    except ValueError as e:
+        flash(str(e))
+        return redirect(url_for("essay_edit", essay_id=essay_id))
+    stage_pending("essay_hero", {"essay_id": essay_id, "rel": rel,
+                                 "old": essay["hero_image"], "_new_files": [rel]})
+    return redirect(url_for("preview_pending"))
 
 
 @app.route("/admin/essays/<int:essay_id>/publish", methods=["POST"])
@@ -405,12 +439,12 @@ def essay_publish(essay_id):
         db.get_db().execute(
             "UPDATE essays SET status='published', published_at=COALESCE(published_at, "
             "datetime('now')), updated_at=datetime('now') WHERE id=?", (essay_id,))
-        flash("เผยแพร่แล้ว — ดูได้ที่หน้าเว็บจริง")
+        flash("Published — the essay is now live.")
     else:
         db.get_db().execute(
             "UPDATE essays SET status='draft', updated_at=datetime('now') WHERE id=?",
             (essay_id,))
-        flash("เปลี่ยนเป็นฉบับร่างแล้ว")
+        flash("Moved back to draft.")
     db.get_db().commit()
     return redirect(url_for("essay_edit", essay_id=essay_id))
 
@@ -427,7 +461,7 @@ def essay_delete(essay_id):
     images.delete_essay_dir(essay_id)
     db.get_db().execute("DELETE FROM essays WHERE id=?", (essay_id,))
     db.get_db().commit()
-    flash("ลบเรื่องแล้ว")
+    flash("Essay deleted.")
     return redirect(url_for("dashboard"))
 
 
@@ -449,25 +483,21 @@ def plate_add(essay_id):
     if kind == "photo":
         file = request.files.get("image")
         if not (file and file.filename):
-            flash("เลือกไฟล์รูปก่อนเพิ่มแผ่นภาพ")
+            flash("Choose an image file first.")
             return redirect(url_for("essay_edit", essay_id=essay_id))
         try:
             image_rel = images.process_upload(file, essay_id, role="plate")
         except ValueError as e:
             flash(str(e))
             return redirect(url_for("essay_edit", essay_id=essay_id))
-    db.get_db().execute(
-        "INSERT INTO plates(essay_id, position, kind, image, layout, caption_th, "
-        "caption_en, alt) VALUES(?,?,?,?,?,?,?,?)",
-        (essay_id, nextpos, kind, image_rel,
-         request.form.get("layout", "normal"),
-         request.form.get("caption_th", "").strip(),
-         request.form.get("caption_en", "").strip(),
-         request.form.get("alt", "").strip()),
-    )
-    db.get_db().execute("UPDATE essays SET updated_at=datetime('now') WHERE id=?", (essay_id,))
-    db.get_db().commit()
-    return redirect(url_for("essay_edit", essay_id=essay_id) + "#plates")
+    stage_pending("plate_add", {
+        "essay_id": essay_id, "position": nextpos, "plate_kind": kind,
+        "rel": image_rel, "_new_files": [image_rel] if image_rel else [],
+        "fields": {"layout": request.form.get("layout", "normal"),
+                   "caption": request.form.get("caption", "").strip(),
+                   "alt": request.form.get("alt", "").strip()},
+    })
+    return redirect(url_for("preview_pending"))
 
 
 @app.route("/admin/plates/<int:plate_id>/update", methods=["POST"])
@@ -476,15 +506,13 @@ def plate_update(plate_id):
     plate = db.get_db().execute("SELECT * FROM plates WHERE id=?", (plate_id,)).fetchone()
     if not plate:
         abort(404)
-    db.get_db().execute(
-        "UPDATE plates SET caption_th=?, caption_en=?, layout=?, alt=? WHERE id=?",
-        (request.form.get("caption_th", "").strip(),
-         request.form.get("caption_en", "").strip(),
-         request.form.get("layout", "normal"),
-         request.form.get("alt", "").strip(), plate_id),
-    )
-    db.get_db().commit()
-    return redirect(url_for("essay_edit", essay_id=plate["essay_id"]) + "#plates")
+    stage_pending("plate_update", {
+        "essay_id": plate["essay_id"], "plate_id": plate_id,
+        "fields": {"caption": request.form.get("caption", "").strip(),
+                   "layout": request.form.get("layout", "normal"),
+                   "alt": request.form.get("alt", "").strip()},
+    })
+    return redirect(url_for("preview_pending"))
 
 
 @app.route("/admin/plates/<int:plate_id>/replace", methods=["POST"])
@@ -494,16 +522,18 @@ def plate_replace(plate_id):
     if not plate:
         abort(404)
     file = request.files.get("image")
-    if file and file.filename:
-        try:
-            rel = images.process_upload(file, plate["essay_id"], role="plate")
-        except ValueError as e:
-            flash(str(e))
-            return redirect(url_for("essay_edit", essay_id=plate["essay_id"]) + "#plates")
-        images.delete_upload(plate["image"])
-        db.get_db().execute("UPDATE plates SET image=? WHERE id=?", (rel, plate_id))
-        db.get_db().commit()
-    return redirect(url_for("essay_edit", essay_id=plate["essay_id"]) + "#plates")
+    if not (file and file.filename):
+        return redirect(url_for("essay_edit", essay_id=plate["essay_id"]) + "#plates")
+    try:
+        rel = images.process_upload(file, plate["essay_id"], role="plate")
+    except ValueError as e:
+        flash(str(e))
+        return redirect(url_for("essay_edit", essay_id=plate["essay_id"]) + "#plates")
+    stage_pending("plate_replace", {
+        "essay_id": plate["essay_id"], "plate_id": plate_id,
+        "rel": rel, "old": plate["image"], "_new_files": [rel],
+    })
+    return redirect(url_for("preview_pending"))
 
 
 @app.route("/admin/plates/<int:plate_id>/delete", methods=["POST"])
@@ -569,14 +599,9 @@ def site_edit():
 @app.route("/admin/site/save", methods=["POST"])
 @login_required
 def site_save():
-    cur = db.get_db()
-    for key in SITE_DEFAULTS:
-        if key in SITE_IMAGE_KEYS:
-            continue
-        cur.execute(
-            "INSERT INTO site_content(key,value) VALUES(?,?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (key, request.form.get(key, "").strip()))
+    texts = {k: request.form.get(k, "").strip()
+             for k in SITE_DEFAULTS if k not in SITE_IMAGE_KEYS}
+    new_images, new_files = {}, []
     for key in SITE_IMAGE_KEYS:
         file = request.files.get(key)
         if file and file.filename:
@@ -585,18 +610,153 @@ def site_save():
                     file, role=("hero" if key == "hero_image" else "card"))
             except ValueError as e:
                 flash(str(e))
-                continue
-            # remove the previously uploaded file for this slot (not static defaults)
+                return redirect(url_for("site_edit"))
+            new_images[key] = "/uploads/" + rel
+            new_files.append(rel)
+    stage_pending("site", {"texts": texts, "images": new_images,
+                           "_new_files": new_files})
+    return redirect(url_for("preview_pending"))
+
+
+# --------------------------------------------------------------------------
+# preview → confirm / discard (staged edits render on the real page first)
+# --------------------------------------------------------------------------
+
+def _merged_essay_context(pending):
+    """Essay + plates with the staged change applied virtually (nothing saved)."""
+    kind, payload = pending["kind"], pending["payload"]
+    essay = dict(get_essay(payload["essay_id"]) or {})
+    if not essay:
+        abort(404)
+    plates = [dict(p) for p in get_plates(payload["essay_id"])]
+    if kind == "essay_meta":
+        fields = dict(payload["fields"])
+        fields.pop("slug", None)          # slug shown on confirm, not previewable
+        essay.update(fields)
+    elif kind == "essay_hero":
+        essay["hero_image"] = payload["rel"]
+    elif kind == "plate_update":
+        for p in plates:
+            if p["id"] == payload["plate_id"]:
+                p.update(payload["fields"])
+    elif kind == "plate_replace":
+        for p in plates:
+            if p["id"] == payload["plate_id"]:
+                p["image"] = payload["rel"]
+    elif kind == "plate_add":
+        plates.append({"id": 0, "essay_id": payload["essay_id"],
+                       "position": payload["position"], "kind": payload["plate_kind"],
+                       "image": payload.get("rel", ""), **payload["fields"]})
+    return essay, build_plates_view(plates)
+
+
+@app.route("/admin/preview")
+@login_required
+def preview_pending():
+    pending = load_pending()
+    if not pending:
+        flash("Nothing to preview.")
+        return redirect(url_for("dashboard"))
+    if pending["kind"] == "site":
+        payload = pending["payload"]
+        merged = get_site()
+        merged.update({k: v for k, v in payload["texts"].items() if v.strip()})
+        merged.update(payload["images"])
+        rows = db.get_db().execute(
+            "SELECT * FROM essays WHERE status='published' "
+            "ORDER BY published_at DESC, id DESC").fetchall()
+        gallery = sorted(
+            f for f in os.listdir(os.path.join(BASE_DIR, "static", "images"))
+            if re.match(r"g\d+\.jpg$", f))
+        return render_template("landing.html", featured=rows[0] if rows else None,
+                               recent=rows[1:], gallery=gallery, site=merged,
+                               confirm_bar=True)
+    essay, plates = _merged_essay_context(pending)
+    return render_template("essay.html", essay=essay, plates=plates,
+                           preview=(essay.get("status") != "published"),
+                           confirm_bar=True)
+
+
+@app.route("/admin/preview/confirm", methods=["POST"])
+@login_required
+def preview_confirm():
+    pending = load_pending()
+    if not pending:
+        return redirect(url_for("dashboard"))
+    kind, payload = pending["kind"], pending["payload"]
+    cur = db.get_db()
+    back = url_for("dashboard")
+    if kind == "essay_meta":
+        f = payload["fields"]
+        eid = payload["essay_id"]
+        essay = get_essay(eid)
+        new_slug = unique_slug(f["slug"], eid) if f.get("slug") else essay["slug"]
+        cur.execute(
+            "UPDATE essays SET title=?, kicker=?, location=?, date_text=?, summary=?, "
+            "lede=?, outro=?, signature=?, slug=?, updated_at=datetime('now') WHERE id=?",
+            (f["title"], f["kicker"], f["location"], f["date_text"], f["summary"],
+             f["lede"], f["outro"], f["signature"], new_slug, eid))
+        back = url_for("essay_edit", essay_id=eid)
+    elif kind == "essay_hero":
+        eid = payload["essay_id"]
+        cur.execute("UPDATE essays SET hero_image=?, updated_at=datetime('now') WHERE id=?",
+                    (payload["rel"], eid))
+        if payload.get("old"):
+            images.delete_upload(payload["old"])
+        back = url_for("essay_edit", essay_id=eid)
+    elif kind == "plate_update":
+        f = payload["fields"]
+        cur.execute("UPDATE plates SET caption=?, layout=?, alt=? WHERE id=?",
+                    (f["caption"], f["layout"], f["alt"], payload["plate_id"]))
+        back = url_for("essay_edit", essay_id=payload["essay_id"]) + "#plates"
+    elif kind == "plate_replace":
+        cur.execute("UPDATE plates SET image=? WHERE id=?",
+                    (payload["rel"], payload["plate_id"]))
+        if payload.get("old"):
+            images.delete_upload(payload["old"])
+        back = url_for("essay_edit", essay_id=payload["essay_id"]) + "#plates"
+    elif kind == "plate_add":
+        f = payload["fields"]
+        cur.execute(
+            "INSERT INTO plates(essay_id, position, kind, image, layout, caption, alt) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (payload["essay_id"], payload["position"], payload["plate_kind"],
+             payload.get("rel", ""), f["layout"], f["caption"], f["alt"]))
+        back = url_for("essay_edit", essay_id=payload["essay_id"]) + "#plates"
+    elif kind == "site":
+        for key, value in payload["texts"].items():
+            cur.execute("INSERT INTO site_content(key,value) VALUES(?,?) "
+                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+        for key, value in payload["images"].items():
             old = cur.execute("SELECT value FROM site_content WHERE key=?", (key,)).fetchone()
             if old and (old["value"] or "").startswith("/uploads/site/"):
                 images.delete_upload(old["value"][len("/uploads/"):])
-            cur.execute(
-                "INSERT INTO site_content(key,value) VALUES(?,?) "
-                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                (key, "/uploads/" + rel))
+            cur.execute("INSERT INTO site_content(key,value) VALUES(?,?) "
+                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+        back = url_for("site_edit")
+    if kind.startswith(("essay", "plate")):
+        cur.execute("UPDATE essays SET updated_at=datetime('now') WHERE id=?",
+                    (payload["essay_id"],))
     cur.commit()
-    flash("บันทึกหน้าเว็บแล้ว — ดูผลได้ที่หน้าเว็บจริง")
-    return redirect(url_for("site_edit"))
+    clear_pending(discard_files=False)
+    flash("Changes published ✓")
+    return redirect(back)
+
+
+@app.route("/admin/preview/discard", methods=["POST"])
+@login_required
+def preview_discard():
+    pending = load_pending()
+    back = url_for("dashboard")
+    if pending:
+        payload = pending["payload"]
+        if pending["kind"] == "site":
+            back = url_for("site_edit")
+        else:
+            back = url_for("essay_edit", essay_id=payload["essay_id"])
+    clear_pending(discard_files=True)
+    flash("Changes discarded.")
+    return redirect(back)
 
 
 # --------------------------------------------------------------------------
@@ -629,22 +789,6 @@ def essay_view(slug):
     plates = build_plates_view(get_plates(essay["id"]))
     return render_template("essay.html", essay=essay, plates=plates,
                            preview=(essay["status"] != "published"))
-
-
-@app.route("/subscribe", methods=["POST"])
-def subscribe():
-    email = (request.form.get("email") or "").strip().lower()
-    ok = bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
-    if ok:
-        try:
-            db.get_db().execute("INSERT OR IGNORE INTO subscribers(email) VALUES(?)", (email,))
-            db.get_db().commit()
-        except Exception:
-            ok = False
-    if request.headers.get("X-Requested-With") == "fetch":
-        return jsonify(ok=ok)
-    flash("ขอบคุณ — คุณอยู่ในรายชื่อแล้ว ✦" if ok else "อีเมลไม่ถูกต้อง")
-    return redirect(url_for("landing") + "#subscribe")
 
 
 @app.route("/uploads/<path:rel>")
@@ -743,7 +887,7 @@ def not_found(e):
 
 @app.errorhandler(413)
 def too_large(e):
-    flash("ไฟล์ใหญ่เกินไป (สูงสุด 40MB ต่อไฟล์)")
+    flash("File too large (max 40MB per file).")
     return render_template("404.html"), 413
 
 

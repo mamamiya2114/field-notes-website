@@ -1,6 +1,6 @@
 {% extends "admin/base.html" %}
 {% set active = 'stats' %}
-{% block title %}สถิติผู้เข้าชม{% endblock %}
+{% block title %}Analytics{% endblock %}
 {% block body %}
 {% macro barlist(rows, label_key, value_key, total) %}
   {% set top = rows[0][value_key] if rows else 1 %}
@@ -15,37 +15,37 @@
     </div>
   </div>
   {% else %}
-  <p class="muted" style="font-size:.88rem">ยังไม่มีข้อมูล</p>
+  <p class="muted" style="font-size:.88rem">No data yet</p>
   {% endfor %}
 {% endmacro %}
 
 <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;margin-bottom:1.6rem">
   <div>
-    <h1 class="page">สถิติผู้เข้าชม</h1>
-    <div class="sub" style="margin:0">นับแบบเคารพความเป็นส่วนตัว — ไม่เก็บ IP ไม่ใช้คุกกี้ ไม่ตามรอยรายบุคคล</div>
+    <h1 class="page">Analytics</h1>
+    <div class="sub" style="margin:0">Privacy-friendly counting — no IPs stored, no cookies, no individual tracking</div>
   </div>
   <div style="display:flex;gap:.4rem">
     {% for d in [7,30,90] %}
-    <a class="btn btn-sm {{ 'btn-primary' if s.days==d }}" href="/admin/stats?days={{ d }}">{{ d }} วัน</a>
+    <a class="btn btn-sm {{ 'btn-primary' if s.days==d }}" href="/admin/stats?days={{ d }}">{{ d }} days</a>
     {% endfor %}
   </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.3rem;margin-bottom:1.3rem">
   <div class="card" style="text-align:center">
-    <div class="muted" style="font-size:.8rem;letter-spacing:.05em;text-transform:uppercase">ยอดเข้าชม (views)</div>
+    <div class="muted" style="font-size:.8rem;letter-spacing:.05em;text-transform:uppercase">Views</div>
     <div style="font-family:var(--serif);font-size:2.6rem;line-height:1.2">{{ s.views }}</div>
-    <div class="muted" style="font-size:.82rem">ใน {{ s.days }} วันล่าสุด</div>
+    <div class="muted" style="font-size:.82rem">in the last {{ s.days }} days</div>
   </div>
   <div class="card" style="text-align:center">
-    <div class="muted" style="font-size:.8rem;letter-spacing:.05em;text-transform:uppercase">ผู้เข้าชมไม่ซ้ำ</div>
+    <div class="muted" style="font-size:.8rem;letter-spacing:.05em;text-transform:uppercase">Unique visitors</div>
     <div style="font-family:var(--serif);font-size:2.6rem;line-height:1.2">{{ s.visitors }}</div>
-    <div class="muted" style="font-size:.82rem">ประมาณการแบบไม่ระบุตัวตน</div>
+    <div class="muted" style="font-size:.82rem">anonymous estimate</div>
   </div>
 </div>
 
 <div class="card">
-  <label style="margin-bottom:1rem">ยอดเข้าชมรายวัน</label>
+  <label style="margin-bottom:1rem">Daily views</label>
   <div style="display:flex;align-items:flex-end;gap:2px;height:140px">
     {% for d in s.series %}
     <div title="{{ d.day }} · {{ d.views }} views · {{ d.visitors }} visitors"
@@ -61,30 +61,30 @@
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.3rem">
   <div class="card">
-    <label style="margin-bottom:1rem">Essay ยอดนิยม</label>
+    <label style="margin-bottom:1rem">Top essays</label>
     {% for r in s.top_essays %}
     <div style="margin-bottom:.7rem">
       <div style="display:flex;justify-content:space-between;font-size:.9rem">
-        <a href="/essay/{{ r.slug }}" target="_blank" style="text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">{{ r.title_th or r.slug }}</a>
-        <span class="muted">{{ r.views }} / {{ r.visitors }} คน</span>
+        <a href="/essay/{{ r.slug }}" target="_blank" style="text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">{{ r.title.replace('\n',' ') if r.title else r.slug }}</a>
+        <span class="muted">{{ r.views }} views / {{ r.visitors }} visitors</span>
       </div>
       <div style="height:7px;background:#efe9df;border-radius:99px;overflow:hidden;margin-top:.2rem">
         <div style="height:100%;width:{{ (r.views/s.top_essays[0].views*100)|round(1) }}%;background:var(--accent)"></div>
       </div>
     </div>
-    {% else %}<p class="muted" style="font-size:.88rem">ยังไม่มีข้อมูล</p>{% endfor %}
+    {% else %}<p class="muted" style="font-size:.88rem">No data yet</p>{% endfor %}
   </div>
   <div class="card">
-    <label style="margin-bottom:1rem">มาจากที่ไหน (referrer)</label>
+    <label style="margin-bottom:1rem">Referrers</label>
     {{ barlist(s.referrers, 'source', 'views', s.views) }}
   </div>
   <div class="card">
-    <label style="margin-bottom:1rem">ประเทศ</label>
+    <label style="margin-bottom:1rem">Countries</label>
     {{ barlist(s.countries, 'country', 'views', s.views) }}
-    <div class="hint">XX = ไม่ทราบ (ต้องมี Cloudflare/พร็อกซีคั่นหน้าจึงจะรู้ประเทศ)</div>
+    <div class="hint">XX = unknown (a proxy such as Cloudflare is needed for country data)</div>
   </div>
   <div class="card">
-    <label style="margin-bottom:1rem">อุปกรณ์ & เบราว์เซอร์</label>
+    <label style="margin-bottom:1rem">Devices &amp; browsers</label>
     {{ barlist(s.devices, 'device', 'views', s.views) }}
     <div style="border-top:1px solid var(--line);margin:.8rem 0"></div>
     {{ barlist(s.browsers, 'browser', 'views', s.views) }}

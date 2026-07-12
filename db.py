@@ -32,13 +32,36 @@ def close_db(exc=None):
         conn.close()
 
 
+def _migrate_english_only(conn):
+    """One-time migration from the old bilingual schema (title_th/title_en,
+    caption_th/caption_en, summary_en) to single-language columns. English
+    values win where they exist; Thai remains until re-edited. Idempotent."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(essays)").fetchall()}
+    if "title_th" in cols:
+        conn.execute("ALTER TABLE essays RENAME COLUMN title_th TO title")
+        conn.execute("UPDATE essays SET title = CASE WHEN TRIM(COALESCE(title_en,''))<>'' "
+                     "THEN title_en ELSE title END")
+        conn.execute("ALTER TABLE essays DROP COLUMN title_en")
+    if "summary_en" in cols:
+        conn.execute("ALTER TABLE essays RENAME COLUMN summary_en TO summary")
+    pcols = {r[1] for r in conn.execute("PRAGMA table_info(plates)").fetchall()}
+    if "caption_th" in pcols:
+        conn.execute("ALTER TABLE plates RENAME COLUMN caption_th TO caption")
+        conn.execute("UPDATE plates SET caption = CASE WHEN TRIM(COALESCE(caption_en,''))<>'' "
+                     "THEN caption_en ELSE caption END")
+        conn.execute("ALTER TABLE plates DROP COLUMN caption_en")
+    conn.execute("DROP TABLE IF EXISTS subscribers")
+    conn.execute("DELETE FROM site_content WHERE key LIKE 'subscribe_%'")
+
+
 def init_db():
-    """Create tables if missing. Idempotent."""
+    """Create tables if missing, then apply in-place migrations. Idempotent."""
     os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     try:
         with open(SCHEMA_PATH, encoding="utf-8") as f:
             conn.executescript(f.read())
+        _migrate_english_only(conn)
         conn.commit()
     finally:
         conn.close()

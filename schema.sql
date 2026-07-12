@@ -9,12 +9,11 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS essays (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   slug          TEXT UNIQUE NOT NULL,
-  title_th      TEXT NOT NULL DEFAULT '',
-  title_en      TEXT NOT NULL DEFAULT '',
+  title         TEXT NOT NULL DEFAULT '',
   kicker        TEXT NOT NULL DEFAULT '',          -- e.g. "Photo Essay № 01 — Skardu, Pakistan"
   location      TEXT NOT NULL DEFAULT '',          -- e.g. "Skardu, Pakistan"
-  date_text     TEXT NOT NULL DEFAULT '',          -- e.g. "พฤษภาคม 2568"
-  summary_en    TEXT NOT NULL DEFAULT '',          -- short English blurb for the landing card
+  date_text     TEXT NOT NULL DEFAULT '',          -- e.g. "May 2025"
+  summary       TEXT NOT NULL DEFAULT '',          -- short blurb for the landing card
   lede          TEXT NOT NULL DEFAULT '',          -- intro prose, paragraphs separated by blank lines
   outro         TEXT NOT NULL DEFAULT '',          -- closing prose, paragraphs separated by blank lines
   signature     TEXT NOT NULL DEFAULT 'BUN',       -- sign-off line
@@ -32,11 +31,19 @@ CREATE TABLE IF NOT EXISTS plates (
   kind        TEXT NOT NULL DEFAULT 'photo',       -- photo | interlude
   image       TEXT NOT NULL DEFAULT '',            -- relative path under /uploads (photo plates)
   layout      TEXT NOT NULL DEFAULT 'normal',      -- normal | full (photo plates)
-  caption_th  TEXT NOT NULL DEFAULT '',
-  caption_en  TEXT NOT NULL DEFAULT '',
+  caption     TEXT NOT NULL DEFAULT '',
   alt         TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_plates_essay ON plates(essay_id, position);
+
+-- Staged (unconfirmed) admin edits: every content edit is stored here first,
+-- previewed on the real page, and only written to the live tables on confirm.
+CREATE TABLE IF NOT EXISTS pending_edits (
+  token      TEXT PRIMARY KEY,
+  kind       TEXT NOT NULL,                        -- essay_meta | plate_update | plate_add | essay_hero | site
+  payload    TEXT NOT NULL,                        -- JSON
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- Privacy-friendly analytics. We never store IP addresses.
 -- visitor_hash = sha256(day + daily_salt + ip + ua); the salt rotates daily and
@@ -61,14 +68,8 @@ CREATE TABLE IF NOT EXISTS daily_salts (
   salt TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS subscribers (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  email      TEXT UNIQUE NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
--- Editable landing-page content (hero, about, subscribe, footer). Key/value so
--- the owner can edit copy + images from /admin/site without touching templates.
+-- Editable landing-page content (hero, about, footer). Key/value so the owner
+-- can edit copy + images from /admin/site without touching templates.
 -- A missing/blank key falls back to the built-in default (see SITE_DEFAULTS).
 CREATE TABLE IF NOT EXISTS site_content (
   key   TEXT PRIMARY KEY,

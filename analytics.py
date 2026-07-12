@@ -140,7 +140,7 @@ def summary(days=30):
         series.append({"day": d, "views": v, "visitors": u})
 
     top_essays = db.execute(
-        "SELECT e.title_th, e.title_en, e.slug, COUNT(*) AS views, "
+        "SELECT e.title, e.slug, COUNT(*) AS views, "
         "       COUNT(DISTINCT v.visitor_hash) AS visitors "
         "FROM visits v JOIN essays e ON e.slug = v.essay_slug "
         "WHERE v.day >= ? AND v.essay_slug IS NOT NULL "

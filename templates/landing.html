@@ -112,21 +112,18 @@
   .about h2{margin-bottom:1.4rem}
   .about p{color:var(--muted);max-width:36rem;margin-bottom:1rem}
   .about .sig{font-family:var(--serif);font-style:italic;font-size:1.3rem;color:var(--ink);margin-top:1.2rem}
-  .subscribe{position:relative;overflow:hidden;text-align:center;background:#f1ece2;border-radius:20px;margin:0 5vw 6rem;padding:4.5rem 2rem}
-  .subscribe .sub-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  .subscribe::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(18,16,13,.62),rgba(18,16,13,.7))}
-  .subscribe>*:not(.sub-bg){position:relative;z-index:2}
-  .subscribe h2{margin-bottom:.8rem;color:var(--paper)}
-  .subscribe p{color:#d8d2c7;margin-bottom:2rem}
-  .sub-form{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
-  .sub-form input{padding:.85rem 1.4rem;border:1px solid var(--line);border-radius:999px;font-family:var(--sans);
-      font-size:.9rem;width:min(320px,80vw);background:#fff;outline:none}
-  .sub-form input:focus{border-color:var(--accent)}
-  .subscribe .btn-primary{background:var(--paper);color:var(--ink)}
-  .subscribe .btn-primary:hover{background:#e8a87b;color:var(--ink)}
-  .sub-msg{margin-top:1rem;font-size:.85rem;color:#e8a87b;min-height:1.2em}
   footer{border-top:1px solid var(--line);padding:2.5rem 5vw;display:flex;justify-content:space-between;
       flex-wrap:wrap;gap:1rem;font-size:.8rem;color:var(--muted)}
+  /* confirm bar for staged admin edits */
+  .confirm-bar{position:fixed;bottom:0;left:0;right:0;z-index:90;display:flex;gap:.8rem;align-items:center;justify-content:center;
+      flex-wrap:wrap;background:var(--ink);border-top:2px solid var(--accent);padding:.9rem 1rem}
+  .confirm-bar .msg{color:#e8e2d8;font-size:.9rem}
+  .confirm-bar button{border:none;cursor:pointer;padding:.7rem 1.6rem;border-radius:999px;font-family:var(--sans);font-size:.85rem;font-weight:600}
+  .confirm-bar .yes{background:var(--accent);color:#fff}
+  .confirm-bar .yes:hover{filter:brightness(1.1)}
+  .confirm-bar .no{background:transparent;color:#d8d2c7;border:1px solid #6e675e}
+  .confirm-bar .no:hover{border-color:#c0392b;color:#ffd7d0}
+  body.has-confirm{padding-bottom:4.5rem}
   .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
   .reveal.show{opacity:1;transform:none}
   @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.strip-inner{animation:none}}
@@ -151,7 +148,7 @@
   @media(max-width:560px){.grid{grid-template-columns:1fr}.gallery{columns:1}}
 </style>
 </head>
-<body>
+<body {% if confirm_bar %}class="has-confirm"{% endif %}>
 <a class="skip-link" href="#main">Skip to content</a>
 <nav>
   <a class="wordmark" href="/" aria-label="Field Notes — home">Field<span>Notes</span></a>
@@ -163,7 +160,6 @@
     <li><a href="#essays">Essays</a></li>
     <li><a href="#gallery">Gallery</a></li>
     <li><a href="#about">About</a></li>
-    <li><a href="#subscribe">Subscribe</a></li>
   </ul>
 </nav>
 
@@ -191,17 +187,17 @@
 <section id="essays">
   {% if featured %}
   <a class="featured reveal" href="/essay/{{ featured.slug }}" style="display:grid">
-    <figure class="fimg"><img src="/uploads/{{ featured.hero_image }}" alt="{{ featured.title_th }}"></figure>
+    <figure class="fimg"><img src="/uploads/{{ featured.hero_image }}" alt="{{ featured.title.replace('\n', ' ') }}"></figure>
     <div class="ftext">
       <div class="kicker">Featured Essay</div>
-      <h3>{{ featured.title_th }}</h3>
-      <p>{{ featured.summary_en or featured.title_en }}</p>
+      <h3>{{ featured.title.replace('\n', ' ') }}</h3>
+      <p>{{ featured.summary }}</p>
       <div class="meta">{% if featured.date_text %}{{ featured.date_text }} · {% endif %}<span class="read-more">Read the essay <span class="arrow">→</span></span></div>
     </div>
   </a>
   {% else %}
   <div class="sec-head"><h2>No essays yet</h2></div>
-  <p class="empty">ยังไม่มี essay ที่เผยแพร่ — เข้า <a href="/admin" style="color:var(--accent)">หลังบ้าน</a> เพื่อสร้างเรื่องแรก</p>
+  <p class="empty">No published essays yet — open the <a href="/admin" style="color:var(--accent)">admin panel</a> to create your first one.</p>
   {% endif %}
 </section>
 
@@ -211,10 +207,10 @@
   <div class="grid">
     {% for e in recent %}
     <a class="card reveal" href="/essay/{{ e.slug }}">
-      <div class="thumb"><img src="/uploads/{{ e.hero_image }}" alt="{{ e.title_th }}"></div>
+      <div class="thumb"><img src="/uploads/{{ e.hero_image }}" alt="{{ e.title.replace('\n', ' ') }}"></div>
       {% if e.location %}<div class="tag">{{ e.location }}</div>{% endif %}
-      <h3>{{ e.title_th }}</h3>
-      <p>{{ e.summary_en or e.title_en }}</p>
+      <h3>{{ e.title.replace('\n', ' ') }}</h3>
+      <p>{{ e.summary }}</p>
       <div class="meta">{{ e.date_text }}</div>
     </a>
     {% endfor %}
@@ -258,17 +254,6 @@
   </div>
 </section>
 
-<section id="subscribe" class="subscribe reveal" style="padding-left:2rem;padding-right:2rem">
-  <img class="sub-bg" src="/static/images/bg-lake.jpg" alt="" loading="lazy" aria-hidden="true">
-  <h2>{{ site.subscribe_heading }}</h2>
-  <p>{{ site.subscribe_tagline }}</p>
-  <form class="sub-form" onsubmit="return subscribe(event)">
-    <input type="email" name="email" placeholder="your@email.com" required>
-    <button class="btn btn-primary" type="submit">Subscribe</button>
-  </form>
-  <div class="sub-msg" id="subMsg">{% with m = get_flashed_messages() %}{% if m %}{{ m[0] }}{% endif %}{% endwith %}</div>
-</section>
-
 </main>
 
 <footer>
@@ -278,6 +263,20 @@
     {% if site.footer_contact %}<a href="mailto:{{ site.footer_contact }}">Contact</a>{% else %}Contact{% endif %}
   </div>
 </footer>
+
+{% if confirm_bar %}
+<div class="confirm-bar" role="region" aria-label="Confirm your changes">
+  <span class="msg">Previewing unsaved changes — nothing is published yet.</span>
+  <form method="post" action="/admin/preview/confirm" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="yes" type="submit">✓ Confirm &amp; save</button>
+  </form>
+  <form method="post" action="/admin/preview/discard" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="no" type="submit">✕ Discard</button>
+  </form>
+</div>
+{% endif %}
 
 <script>
   // mobile nav toggle
@@ -311,17 +310,6 @@
     if (e.key==='ArrowRight') navLb(1);
   });
 
-  async function subscribe(ev){
-    ev.preventDefault();
-    const form = ev.target, email = form.email.value;
-    try{
-      const r = await fetch('/subscribe', {method:'POST', headers:{'X-Requested-With':'fetch','Content-Type':'application/x-www-form-urlencoded'}, body:'email='+encodeURIComponent(email)});
-      const j = await r.json();
-      document.getElementById('subMsg').textContent = j.ok ? "Thank you — you're on the list. ✦" : "Please enter a valid email.";
-      if (j.ok) form.reset();
-    }catch(_){ document.getElementById('subMsg').textContent = "Something went wrong."; }
-    return false;
-  }
 </script>
 </body>
 </html>

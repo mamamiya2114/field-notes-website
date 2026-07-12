@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ essay.title_th }} — Field Notes</title>
-<meta name="description" content="{{ essay.summary_en or essay.title_en }}">
-<meta property="og:title" content="{{ essay.title_th }}">
-<meta property="og:description" content="{{ essay.summary_en or essay.title_en }}">
+<title>{{ essay.title.replace('\n', ' ') }} — Field Notes</title>
+<meta name="description" content="{{ essay.summary or essay.title.replace('\n', ' ') }}">
+<meta property="og:title" content="{{ essay.title.replace('\n', ' ') }}">
+<meta property="og:description" content="{{ essay.summary or essay.title.replace('\n', ' ') }}">
 <meta property="og:type" content="article">
 {% if essay.hero_image %}<meta property="og:image" content="{{ request.url_root }}uploads/{{ essay.hero_image }}">{% endif %}
 <meta name="twitter:card" content="summary_large_image">
@@ -16,15 +16,15 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e8a87b'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-style='italic' fill='%2312100d' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@400;500&family=Sarabun:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#12100d; --paper:#faf7f2; --text:#e8e2d8; --dim:#9b9489; --accent:#e8a87b;
-    --serif:'Fraunces',Georgia,serif; --thai:'Sarabun','Inter',sans-serif;
+    --serif:'Fraunces',Georgia,serif; --sans:'Inter',-apple-system,sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{background:var(--bg);color:var(--text);font-family:var(--thai);line-height:1.85;-webkit-font-smoothing:antialiased}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.8;-webkit-font-smoothing:antialiased}
   img{display:block;width:100%;height:auto;background:#211d18}
   a{color:inherit;text-decoration:none}
   :focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:4px}
@@ -40,49 +40,56 @@
   nav .back:hover{color:var(--accent)}
   #progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);width:0;z-index:60}
   .preview-banner{position:fixed;bottom:0;left:0;right:0;z-index:70;background:#b5542d;color:#fff;
-      text-align:center;font-family:'Inter',sans-serif;font-size:.8rem;padding:.6rem 1rem;letter-spacing:.04em}
+      text-align:center;font-family:var(--sans);font-size:.8rem;padding:.6rem 1rem;letter-spacing:.04em}
   .hero{position:relative;height:100vh;overflow:hidden;display:flex;align-items:flex-end}
   .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.62)}
   .hero-inner{position:relative;z-index:2;padding:0 6vw 11vh;max-width:60rem}
-  .kicker{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:var(--accent);margin-bottom:1.2rem}
-  .hero h1{font-family:var(--thai);font-weight:300;font-size:clamp(2rem,5.2vw,3.9rem);line-height:1.25;color:#fff;letter-spacing:.01em}
-  .hero .sub{font-family:var(--serif);font-style:italic;font-weight:300;font-size:clamp(1rem,1.8vw,1.3rem);color:#d8d2c7;margin-top:1rem}
-  .hero .meta{margin-top:2rem;font-family:'Inter',sans-serif;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#b3aca1}
+  .kicker{font-family:var(--sans);font-size:.75rem;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:var(--accent);margin-bottom:1.2rem}
+  .hero h1{font-family:var(--serif);font-weight:300;font-size:clamp(2.1rem,5.2vw,4rem);line-height:1.14;color:#fff;letter-spacing:-.01em}
+  .hero .meta{margin-top:2rem;font-family:var(--sans);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#b3aca1}
   .scroll-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);z-index:2;color:#d8d2c7;font-size:1.4rem;animation:bob 2s ease-in-out infinite}
   @keyframes bob{50%{transform:translate(-50%,8px)}}
   .prose{max-width:42rem;margin:0 auto;padding:7rem 6vw}
-  .prose p{font-size:1.12rem;font-weight:300;color:var(--text);margin-bottom:1.6rem}
-  .prose .drop::first-letter{font-family:var(--serif);float:left;font-size:3.6em;line-height:.85;padding-right:.12em;color:var(--accent)}
+  .prose p{font-family:var(--serif);font-weight:300;font-size:1.18rem;line-height:1.85;color:var(--text);margin-bottom:1.6rem}
+  .prose .drop::first-letter{float:left;font-size:3.6em;line-height:.85;padding-right:.12em;color:var(--accent)}
   .plate{margin:0 auto;padding:3.5rem 0}
   .plate figure{max-width:1500px;margin:0 auto}
   .plate img{width:100%}
   .plate .cap{max-width:40rem;margin:1.8rem auto 0;padding:0 6vw;text-align:center}
-  .plate .num{font-family:'Inter',sans-serif;font-size:.68rem;letter-spacing:.22em;color:#7a7368;display:block;margin-bottom:.7rem}
-  .plate .th{font-size:1.08rem;font-weight:400;color:var(--text)}
-  .plate .en{font-family:var(--serif);font-style:italic;font-weight:300;font-size:.95rem;color:var(--dim);margin-top:.5rem}
+  .plate .num{font-family:var(--sans);font-size:.68rem;letter-spacing:.22em;color:#7a7368;display:block;margin-bottom:.7rem}
+  .plate .cap p{font-family:var(--serif);font-style:italic;font-weight:300;font-size:1.05rem;line-height:1.75;color:var(--text)}
   .plate.full img{max-height:96vh;object-fit:cover}
   .interlude{max-width:46rem;margin:0 auto;padding:8rem 6vw;text-align:center}
-  .interlude p{font-family:var(--thai);font-weight:300;font-size:clamp(1.3rem,2.6vw,1.9rem);line-height:1.7;color:#f0ebe2}
-  .interlude .en{font-family:var(--serif);font-style:italic;font-size:1rem;color:var(--dim);margin-top:1.4rem;line-height:1.8}
-  .interlude::before{content:"✦";display:block;color:var(--accent);margin-bottom:2.5rem;font-size:.9rem}
+  .interlude p{font-family:var(--serif);font-style:italic;font-weight:300;font-size:clamp(1.25rem,2.4vw,1.75rem);line-height:1.7;color:#f0ebe2}
+  .interlude::before{content:"✦";display:block;color:var(--accent);margin-bottom:2.5rem;font-size:.9rem;font-style:normal}
   .outro{background:var(--paper);color:#1a1714;margin-top:6rem}
   .outro .prose p{color:#3f3a33}
   .outro .prose{padding:7rem 6vw 5rem}
   .outro .sig{font-family:var(--serif);font-style:italic;font-size:1.25rem;color:#1a1714;margin-top:2.5rem}
   .outro .end-row{display:flex;justify-content:center;gap:1rem;padding-bottom:6rem}
-  .btn{display:inline-block;padding:.85rem 1.9rem;border-radius:999px;font-family:'Inter',sans-serif;font-size:.84rem;font-weight:600;letter-spacing:.04em;transition:all .25s}
+  .btn{display:inline-block;padding:.85rem 1.9rem;border-radius:999px;font-family:var(--sans);font-size:.84rem;font-weight:600;letter-spacing:.04em;transition:all .25s}
   .btn-dark{background:#1a1714;color:var(--paper)}
   .btn-dark:hover{background:#b5542d}
   footer{background:var(--paper);border-top:1px solid #e3ddd2;padding:2.2rem 5vw;display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;
-      font-family:'Inter',sans-serif;font-size:.78rem;color:#6e675e}
+      font-family:var(--sans);font-size:.78rem;color:#6e675e}
   .reveal{opacity:0;transform:translateY(30px);transition:opacity .9s ease,transform .9s ease}
   .reveal.show{opacity:1;transform:none}
+  /* confirm bar for staged admin edits */
+  .confirm-bar{position:fixed;bottom:0;left:0;right:0;z-index:90;display:flex;gap:.8rem;align-items:center;justify-content:center;
+      flex-wrap:wrap;background:#1a1714;border-top:2px solid var(--accent);padding:.9rem 1rem;font-family:var(--sans)}
+  .confirm-bar .msg{color:#e8e2d8;font-size:.9rem}
+  .confirm-bar button{border:none;cursor:pointer;padding:.7rem 1.6rem;border-radius:999px;font-family:var(--sans);font-size:.85rem;font-weight:600}
+  .confirm-bar .yes{background:var(--accent);color:#12100d}
+  .confirm-bar .yes:hover{filter:brightness(1.08)}
+  .confirm-bar .no{background:transparent;color:#d8d2c7;border:1px solid #4a443c}
+  .confirm-bar .no:hover{border-color:#c0392b;color:#e88}
+  body.has-confirm{padding-bottom:4.5rem}
   @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.scroll-hint{animation:none}}
   @media(max-width:640px){.prose,.interlude{padding-left:7vw;padding-right:7vw}.plate .cap{padding:0 8vw}}
 </style>
 </head>
-<body>
-<a class="skip-link" href="#main">ข้ามไปเนื้อหา</a>
+<body {% if confirm_bar %}class="has-confirm"{% endif %}>
+<a class="skip-link" href="#main">Skip to content</a>
 <div id="progress"></div>
 <nav>
   <a class="wordmark" href="/" aria-label="Field Notes — home">Field<span>Notes</span></a>
@@ -91,17 +98,16 @@
 
 <main id="main">
 <header class="hero">
-  {% if essay.hero_image %}<img src="/uploads/{{ essay.hero_image }}" alt="{{ essay.title_th }}" fetchpriority="high" decoding="async">{% endif %}
+  {% if essay.hero_image %}<img src="/uploads/{{ essay.hero_image }}" alt="{{ essay.title.replace('\n', ' ') }}" fetchpriority="high" decoding="async">{% endif %}
   <div class="hero-inner">
     {% if essay.kicker %}<div class="kicker">{{ essay.kicker }}</div>{% endif %}
-    <h1>{{ essay.title_th | nl2br }}</h1>
-    {% if essay.title_en %}<p class="sub">{{ essay.title_en }}</p>{% endif %}
+    <h1>{{ essay.title | nl2br }}</h1>
     <div class="meta">
       {%- set photos = plates | selectattr('kind','equalto','photo') | list -%}
       {% if essay.date_text %}{{ essay.date_text }} · {% endif %}{{ photos|length }} photographs · words &amp; photographs by {{ essay.signature }}
     </div>
   </div>
-  <div class="scroll-hint">↓</div>
+  <div class="scroll-hint" aria-hidden="true">↓</div>
 </header>
 
 {% if essay.lede %}
@@ -115,17 +121,15 @@
 {% for p in plates %}
   {% if p.kind == 'interlude' %}
   <div class="interlude reveal">
-    {% if p.caption_th %}<p>{{ p.caption_th }}</p>{% endif %}
-    {% if p.caption_en %}<p class="en">{{ p.caption_en | nl2br }}</p>{% endif %}
+    {% if p.caption %}<p>{{ p.caption | nl2br }}</p>{% endif %}
   </div>
   {% else %}
   <div class="plate {% if p.layout == 'full' %}full{% endif %} reveal">
     <figure>
-      <img src="/uploads/{{ p.image }}" alt="{{ p.alt or p.caption_th }}" loading="lazy">
+      <img src="/uploads/{{ p.image }}" alt="{{ p.alt or p.caption }}" loading="lazy">
       <div class="cap">
         <span class="num">{{ p.num }}</span>
-        {% if p.caption_th %}<p class="th">{{ p.caption_th }}</p>{% endif %}
-        {% if p.caption_en %}<p class="en">{{ p.caption_en }}</p>{% endif %}
+        {% if p.caption %}<p>{{ p.caption }}</p>{% endif %}
       </div>
     </figure>
   </div>
@@ -144,14 +148,27 @@
 </section>
 {% endif %}
 
-</main>
-
 <footer>
-  <div>© {{ now_year }} Field Notes · {{ essay.title_th }}</div>
+  <div>© {{ now_year }} Field Notes · {{ essay.title.replace('\n', ' ') }}</div>
   <div>Photographs &amp; text by {{ essay.signature }}</div>
 </footer>
+</main>
 
-{% if preview %}<div class="preview-banner">ตัวอย่างฉบับร่าง — ยังไม่เผยแพร่ (เห็นเฉพาะตอนล็อกอิน)</div>{% endif %}
+{% if confirm_bar %}
+<div class="confirm-bar" role="region" aria-label="Confirm your changes">
+  <span class="msg">Previewing unsaved changes — nothing is published yet.</span>
+  <form method="post" action="/admin/preview/confirm" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="yes" type="submit">✓ Confirm &amp; save</button>
+  </form>
+  <form method="post" action="/admin/preview/discard" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="no" type="submit">✕ Discard</button>
+  </form>
+</div>
+{% elif preview %}
+<div class="preview-banner">Draft preview — not published (visible only while signed in)</div>
+{% endif %}
 
 <script>
   const io = new IntersectionObserver(es => es.forEach(e => {

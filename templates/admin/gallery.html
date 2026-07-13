@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% set active = 'gallery' %}
+{% block title %}Archive{% endblock %}
+{% block body %}
+<div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem">
+  <div>
+    <h1 class="page">Archive gallery</h1>
+    <div class="sub" style="margin:0">The “From the archive” photos on the landing page · {{ gallery|length }} photo{{ 's' if gallery|length != 1 }}</div>
+  </div>
+  <a class="btn btn-sm" href="/#gallery" target="_blank">View on site ↗</a>
+</div>
+
+<div class="flash" style="border-left-color:#8a8378">
+  Archive photos update the live site <b>immediately</b> — uploads are resized and
+  optimized automatically, and you can reorder or remove them any time.
+</div>
+
+<!-- add -->
+<div class="card" style="border-style:dashed">
+  <label style="margin-bottom:.7rem">+ Add photos to the archive</label>
+  <form method="post" action="/admin/gallery/add" enctype="multipart/form-data"
+        style="display:flex;gap:.8rem;align-items:flex-end;flex-wrap:wrap">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field" style="margin-bottom:0;flex:1;min-width:220px">
+      <label>Image files</label>
+      <input type="file" name="images" accept="image/*" multiple required>
+      <div class="hint">Select one or several — originals are fine (max 1400px, JPEG)</div>
+    </div>
+    <button class="btn btn-accent" type="submit">Upload</button>
+  </form>
+</div>
+
+{% if gallery %}
+<div class="gal-grid">
+  {% for g in gallery %}
+  <div class="gal-item">
+    <img src="{{ g.image }}" alt="{{ g.alt }}">
+    <form method="post" action="/admin/gallery/{{ g.id }}/alt" style="margin-top:.55rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="alt" value="{{ g.alt }}" placeholder="Caption / alt text"
+             style="font-size:.82rem;padding:.4rem .6rem" onchange="this.form.requestSubmit()">
+    </form>
+    <div class="gal-actions">
+      {% if not loop.first %}<form method="post" action="/admin/gallery/{{ g.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up"><button class="btn btn-sm" title="Move earlier">←</button></form>{% endif %}
+      {% if not loop.last %}<form method="post" action="/admin/gallery/{{ g.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down"><button class="btn btn-sm" title="Move later">→</button></form>{% endif %}
+      <form method="post" action="/admin/gallery/{{ g.id }}/delete" class="inline" style="margin-left:auto" onsubmit="return confirm('Remove this photo from the archive?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" title="Remove">✕</button></form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:3rem 1.4rem">
+  <div style="font-family:var(--serif);font-size:1.3rem;margin-bottom:.4rem">The archive is empty</div>
+  <p class="muted">Add a few photos above — the “From the archive” gallery only appears on the site once it has images.</p>
+</div>
+{% endif %}
+
+<style>
+  .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.1rem}
+  .gal-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.6rem}
+  .gal-item img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px;display:block}
+  .gal-actions{display:flex;gap:.35rem;margin-top:.5rem;align-items:center}
+  .gal-item input[type=text]{width:100%}
+</style>
+{% endblock %}

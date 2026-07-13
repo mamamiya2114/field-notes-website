@@ -153,6 +153,12 @@ def get_site():
     return data
 
 
+def get_gallery():
+    """The 'From the archive' photos, in display order."""
+    return db.get_db().execute(
+        "SELECT * FROM gallery ORDER BY position, id").fetchall()
+
+
 # --------------------------------------------------------------------------
 # staged edits — changesets
 #
@@ -733,6 +739,86 @@ def site_save():
 
 
 # --------------------------------------------------------------------------
+# admin — archive gallery (direct management, like plate move/delete)
+# --------------------------------------------------------------------------
+
+@app.route("/admin/gallery")
+@login_required
+def gallery_edit():
+    return render_template("admin/gallery.html", gallery=get_gallery())
+
+
+@app.route("/admin/gallery/add", methods=["POST"])
+@login_required
+def gallery_add():
+    files = request.files.getlist("images")
+    added = 0
+    cur = db.get_db()
+    nextpos = cur.execute(
+        "SELECT COALESCE(MAX(position),0)+1 AS n FROM gallery").fetchone()["n"]
+    for file in files:
+        if not (file and file.filename):
+            continue
+        try:
+            rel = images.process_gallery_upload(file)
+        except ValueError as e:
+            flash(str(e))
+            continue
+        cur.execute("INSERT INTO gallery(position, image, alt) VALUES(?,?,?)",
+                    (nextpos, "/uploads/" + rel,
+                     request.form.get("alt", "").strip()
+                     or "Photograph from the field archive"))
+        nextpos += 1
+        added += 1
+    cur.commit()
+    if added:
+        flash(f"Added {added} photo{'s' if added > 1 else ''} to the archive.")
+    return redirect(url_for("gallery_edit"))
+
+
+@app.route("/admin/gallery/<int:gid>/alt", methods=["POST"])
+@login_required
+def gallery_alt(gid):
+    db.get_db().execute("UPDATE gallery SET alt=? WHERE id=?",
+                        (request.form.get("alt", "").strip(), gid))
+    db.get_db().commit()
+    flash("Caption updated.")
+    return redirect(url_for("gallery_edit"))
+
+
+@app.route("/admin/gallery/<int:gid>/delete", methods=["POST"])
+@login_required
+def gallery_delete(gid):
+    row = db.get_db().execute("SELECT * FROM gallery WHERE id=?", (gid,)).fetchone()
+    if row:
+        if (row["image"] or "").startswith("/uploads/"):
+            images.delete_upload(row["image"][len("/uploads/"):])
+        db.get_db().execute("DELETE FROM gallery WHERE id=?", (gid,))
+        db.get_db().commit()
+        flash("Photo removed from the archive.")
+    return redirect(url_for("gallery_edit"))
+
+
+@app.route("/admin/gallery/<int:gid>/move", methods=["POST"])
+@login_required
+def gallery_move(gid):
+    cur = db.get_db()
+    row = cur.execute("SELECT * FROM gallery WHERE id=?", (gid,)).fetchone()
+    if not row:
+        return redirect(url_for("gallery_edit"))
+    op = "<" if request.form.get("dir") == "up" else ">"
+    order = "DESC" if op == "<" else "ASC"
+    nb = cur.execute(
+        f"SELECT * FROM gallery WHERE position {op} ? ORDER BY position {order} LIMIT 1",
+        (row["position"],)).fetchone()
+    if nb:
+        cur.execute("UPDATE gallery SET position=? WHERE id=?", (nb["position"], row["id"]))
+        cur.execute("UPDATE gallery SET position=? WHERE id=?", (row["position"], nb["id"]))
+        cur.commit()
+    return redirect(url_for("gallery_edit"))
+
+
+# --------------------------------------------------------------------------
 # preview → confirm / discard (the whole changeset renders on the real page)
 # --------------------------------------------------------------------------
 
@@ -806,11 +892,8 @@ def preview_pending():
         rows = db.get_db().execute(
             "SELECT * FROM essays WHERE status='published' "
             "ORDER BY published_at DESC, id DESC").fetchall()
-        gallery = sorted(
-            f for f in os.listdir(os.path.join(BASE_DIR, "static", "images"))
-            if re.match(r"g\d+\.jpg$", f))
         return render_template("landing.html", featured=rows[0] if rows else None,
-                               recent=rows[1:], gallery=gallery,
+                               recent=rows[1:], gallery=get_gallery(),
                                site=_merged_site(cs["ops"]), confirm_bar=True,
                                cs_target=target, cs_count=len(cs["ops"]),
                                back_url=url_for("site_edit"))
@@ -915,12 +998,8 @@ def landing():
         "ORDER BY published_at DESC, id DESC").fetchall()
     featured = rows[0] if rows else None
     recent = rows[1:] if len(rows) > 1 else []
-    gallery = sorted(
-        f for f in os.listdir(os.path.join(BASE_DIR, "static", "images"))
-        if re.match(r"g\d+\.jpg$", f)
-    ) if os.path.isdir(os.path.join(BASE_DIR, "static", "images")) else []
     return render_template("landing.html", featured=featured, recent=recent,
-                           gallery=gallery)
+                           gallery=get_gallery())
 
 
 @app.route("/essay/<slug>")

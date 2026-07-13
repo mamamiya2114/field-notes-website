@@ -4,6 +4,7 @@ One embedded database file (data/app.db). Connections are per-request via Flask'
 `g`. Rows come back as dict-like sqlite3.Row objects.
 """
 import os
+import re
 import sqlite3
 import secrets
 from flask import g
@@ -54,6 +55,22 @@ def _migrate_english_only(conn):
     conn.execute("DELETE FROM site_content WHERE key LIKE 'subscribe_%'")
 
 
+def _seed_gallery(conn):
+    """First run only: populate the gallery from the bundled static/images/gNN.jpg
+    files so the existing archive appears without any manual upload."""
+    if conn.execute("SELECT COUNT(*) FROM gallery").fetchone()[0] > 0:
+        return
+    static_dir = os.path.join(BASE_DIR, "static", "images")
+    if not os.path.isdir(static_dir):
+        return
+    files = sorted(f for f in os.listdir(static_dir)
+                   if re.match(r"g\d+\.jpg$", f))
+    for i, f in enumerate(files, start=1):
+        conn.execute(
+            "INSERT INTO gallery(position, image, alt) VALUES(?,?,?)",
+            (i, f"/static/images/{f}", "Photograph from the field archive"))
+
+
 def init_db():
     """Create tables if missing, then apply in-place migrations. Idempotent."""
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -62,6 +79,7 @@ def init_db():
         with open(SCHEMA_PATH, encoding="utf-8") as f:
             conn.executescript(f.read())
         _migrate_english_only(conn)
+        _seed_gallery(conn)
         conn.commit()
     finally:
         conn.close()

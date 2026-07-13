@@ -72,6 +72,7 @@
   <nav>
     <a href="/admin" class="{{ 'active' if active=='essays' }}">Essays</a>
     <a href="/admin/site" class="{{ 'active' if active=='site' }}">Site content</a>
+    <a href="/admin/gallery" class="{{ 'active' if active=='gallery' }}">Archive</a>
     <a href="/admin/stats" class="{{ 'active' if active=='stats' }}">Analytics</a>
     <a href="/" target="_blank">View site ↗</a>
     <form method="post" action="/admin/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm">Sign out</button></form>

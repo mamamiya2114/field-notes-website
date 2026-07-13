@@ -226,16 +226,18 @@
   <figcaption>The Indus braids through the Skardu valley</figcaption>
 </figure>
 
+{% if gallery %}
 <div class="gallery-wrap" id="gallery">
   <section>
     <div class="sec-head reveal"><h2>From the archive</h2><span class="sec-note">Field notes between the essays · tap to enlarge</span></div>
     <div class="gallery">
       {% for g in gallery %}
-      <figure class="gitem reveal"><img src="/static/images/{{ g }}" alt="Photograph from the field archive" loading="lazy"></figure>
+      <figure class="gitem reveal"><img src="{{ g.image }}" alt="{{ g.alt or 'Photograph from the field archive' }}" loading="lazy"></figure>
       {% endfor %}
     </div>
   </section>
 </div>
+{% endif %}
 
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLb()">
   <img id="lbImg" src="" alt="Enlarged photograph">

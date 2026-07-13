@@ -75,9 +75,9 @@
     {% else %}
       <div style="width:220px;height:130px;border-radius:10px;background:#e9e2d6;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem">No cover yet</div>
     {% endif %}
-    <form method="post" action="/admin/essays/{{ essay.id }}/hero" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center">
+    <form method="post" action="/admin/essays/{{ essay.id }}/hero" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="file" name="hero" accept="image/*" required>
+      <input type="file" name="hero" accept="image/*" required style="min-width:0;max-width:100%">
       <button class="btn" type="submit">Upload &amp; preview</button>
     </form>
   </div>
@@ -93,10 +93,10 @@
       {% if p.kind == 'photo' %}
         <img src="/uploads/{{ p.image }}" alt="" style="width:220px;height:150px;object-fit:cover;border-radius:10px;margin-bottom:.5rem">
         <div class="muted" style="font-size:.78rem;margin-bottom:.5rem">{{ p.num }}</div>
-        <form method="post" action="/admin/plates/{{ p.id }}/replace" enctype="multipart/form-data" style="display:flex;gap:.3rem">
+        <form method="post" action="/admin/plates/{{ p.id }}/replace" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:.45rem;width:220px">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="file" name="image" accept="image/*" required style="font-size:.75rem">
-          <button class="btn btn-sm" type="submit">Replace</button>
+          <input type="file" name="image" accept="image/*" required style="font-size:.75rem;width:100%;min-width:0">
+          <button class="btn btn-sm" type="submit" style="align-self:flex-start">Replace image</button>
         </form>
       {% else %}
         <div style="width:220px;height:90px;border-radius:10px;background:#1a1714;color:#e8a87b;display:flex;align-items:center;justify-content:center;font-style:italic;font-family:var(--serif)">✦ Interlude</div>

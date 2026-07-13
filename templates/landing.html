@@ -96,11 +96,12 @@
   .pano img{width:100%;height:auto;max-height:64vh;object-fit:cover}
   .pano figcaption{position:absolute;bottom:1rem;left:1.2rem;font-size:.72rem;letter-spacing:.06em;color:#fff;
       background:rgba(20,16,12,.55);padding:.35rem .8rem;border-radius:999px;backdrop-filter:blur(4px)}
-  .gallery{columns:3;column-gap:1.2rem;border-top:1px solid var(--line);padding-top:0}
-  .gallery-wrap{border-top:1px solid var(--line)}
-  .gitem{break-inside:avoid;margin-bottom:1.2rem;border-radius:12px;overflow:hidden;cursor:zoom-in;position:relative}
-  .gitem img{height:auto;transition:transform .5s ease}
-  .gitem:hover img{transform:scale(1.04)}
+  .gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:1.6rem}
+  .gallery-wrap{border-top:1px solid var(--line);background:#f4f0e9}
+  .gitem{border-radius:14px;overflow:hidden;cursor:zoom-in;position:relative;aspect-ratio:4/5;background:#e3ddd2}
+  .gitem img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
+  .gitem:hover img{transform:scale(1.06)}
+  .gitem::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(26,23,20,.06);border-radius:inherit;pointer-events:none}
   .lightbox{position:fixed;inset:0;z-index:100;background:rgba(15,12,9,.94);display:none;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
   .lightbox.open{display:flex}
   .lightbox img{max-width:92vw;max-height:84vh;width:auto;height:auto;border-radius:8px;object-fit:contain;background:transparent}
@@ -136,7 +137,7 @@
     .featured{grid-template-columns:1fr;gap:0}
     .featured .ftext{padding:2.5rem}
     .about{grid-template-columns:1fr}
-    .gallery{columns:2}
+    .gallery{grid-template-columns:repeat(2,1fr);gap:1rem}
     .nav-toggle{display:flex}
     nav ul{position:fixed;top:60px;left:0;right:0;flex-direction:column;align-items:flex-start;gap:0;
         background:var(--paper);border-bottom:1px solid var(--line);padding:.5rem 5vw 1rem;
@@ -147,7 +148,7 @@
     nav ul a{display:block;width:100%;padding:.95rem 0;font-size:.95rem;border-bottom:1px solid var(--line)}
     nav ul li:last-child a{border-bottom:none}
   }
-  @media(max-width:560px){.grid{grid-template-columns:1fr}.gallery{columns:1}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}.gallery{grid-template-columns:repeat(2,1fr);gap:.7rem}}
 </style>
 </head>
 <body {% if confirm_bar %}class="has-confirm"{% endif %}>
@@ -226,11 +227,11 @@
 </figure>
 
 <div class="gallery-wrap" id="gallery">
-  <section style="padding-bottom:6rem">
-    <div class="sec-head reveal"><h2>From the archive</h2><span class="sec-note">{{ gallery|length }} photographs · tap any to enlarge</span></div>
+  <section>
+    <div class="sec-head reveal"><h2>From the archive</h2><span class="sec-note">Field notes between the essays · tap to enlarge</span></div>
     <div class="gallery">
       {% for g in gallery %}
-      <figure class="gitem reveal"><img src="/static/images/{{ g }}" alt="Archive photograph" loading="lazy"></figure>
+      <figure class="gitem reveal"><img src="/static/images/{{ g }}" alt="Photograph from the field archive" loading="lazy"></figure>
       {% endfor %}
     </div>
   </section>

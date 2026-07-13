@@ -11,8 +11,8 @@
 </div>
 
 <div class="flash" style="border-left-color:#8a8378">
-  ✎ Changes are <b>previewed on the real landing page first</b> — nothing goes live until you press
-  “Confirm &amp; save” on the preview.
+  ✎ Edits are saved as <b>drafts</b> — change as much as you like, then
+  <b>Preview all changes</b> once and publish them together. Nothing goes live until then.
 </div>
 
 <form method="post" action="/admin/site/save" enctype="multipart/form-data">
@@ -79,13 +79,28 @@
 </div>
 
 <div style="position:sticky;bottom:0;background:linear-gradient(transparent,#f4f0e9 40%);padding:1rem 0;display:flex;gap:.6rem">
-  <button class="btn btn-primary" type="submit">Preview changes</button>
+  <button class="btn btn-primary" type="submit">Save draft</button>
   <a class="btn" href="/" target="_blank">View site ↗</a>
 </div>
 </form>
 
+{% if cs_count %}
+<div class="draft-bar">
+  <span>✎ <b>{{ cs_count }}</b> draft change{{ 's' if cs_count > 1 }} — not live yet</span>
+  <a class="btn btn-accent btn-sm" href="/admin/preview?t={{ cs_target }}">Preview all changes</a>
+  <form method="post" action="/admin/preview/discard" class="inline" onsubmit="return confirm('Discard all draft changes?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="t" value="{{ cs_target }}">
+    <button class="btn btn-sm btn-danger" type="submit">Discard all</button>
+  </form>
+</div>
+{% endif %}
+
 <style>
   .sec-title{font-family:var(--serif);font-size:1.2rem;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--line)}
   code{background:#f1ece2;padding:.05rem .3rem;border-radius:4px;font-size:.85em}
+  .draft-bar{position:sticky;bottom:1rem;z-index:30;display:flex;gap:.8rem;align-items:center;justify-content:center;flex-wrap:wrap;
+      background:#1a1714;color:#e8e2d8;border-radius:999px;padding:.65rem 1.3rem;margin-top:1.5rem;
+      box-shadow:0 10px 30px -10px rgba(26,23,20,.5);font-size:.9rem}
 </style>
 {% endblock %}

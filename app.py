@@ -154,55 +154,134 @@ def get_site():
 
 
 # --------------------------------------------------------------------------
-# staged edits — every content edit is previewed on the real page first
+# staged edits — changesets
+#
+# Edits accumulate into ONE changeset per target (an essay, or the site), so
+# the owner can fix many things, hit "Preview all changes" once, and confirm
+# the whole batch in one go. Only tokens live in the session (cookie sessions
+# are ~4KB); the ops JSON goes in SQLite (pending_edits: token, target, ops).
 # --------------------------------------------------------------------------
 
-def stage_pending(kind, payload):
-    """Store an unconfirmed edit; only its token lives in the session (cookie
-    sessions are ~4KB, essay text does not fit — the payload goes in SQLite)."""
-    token = secrets.token_hex(16)
-    cur = db.get_db()
-    cur.execute("DELETE FROM pending_edits WHERE created_at < datetime('now','-1 day')")
-    old = session.pop("pending_token", None)
-    if old:
-        _discard_pending_files(old)
-        cur.execute("DELETE FROM pending_edits WHERE token=?", (old,))
-    cur.execute("INSERT INTO pending_edits(token,kind,payload) VALUES(?,?,?)",
-                (token, kind, json.dumps(payload, ensure_ascii=False)))
-    cur.commit()
-    session["pending_token"] = token
-    return token
+def _target_of(kind, payload):
+    return "site" if kind == "site" else f"essay:{payload['essay_id']}"
 
 
-def load_pending():
-    token = session.get("pending_token")
+def get_changeset(target):
+    """Return {'token','target','ops':[...]} or None."""
+    tokens = session.get("pending", {})
+    token = tokens.get(target)
     if not token:
         return None
     row = db.get_db().execute(
         "SELECT * FROM pending_edits WHERE token=?", (token,)).fetchone()
     if not row:
-        session.pop("pending_token", None)
+        tokens.pop(target, None)
+        session["pending"] = tokens
         return None
-    return {"token": token, "kind": row["kind"], "payload": json.loads(row["payload"])}
+    return {"token": token, "target": target, "ops": json.loads(row["payload"])}
 
 
-def _discard_pending_files(token):
-    """Delete any image a staged (never-confirmed) edit had already uploaded."""
-    row = db.get_db().execute(
-        "SELECT * FROM pending_edits WHERE token=?", (token,)).fetchone()
-    if row:
-        payload = json.loads(row["payload"])
-        for rel in payload.get("_new_files", []):
-            images.delete_upload(rel)
+def _write_changeset(target, ops):
+    cur = db.get_db()
+    cur.execute("DELETE FROM pending_edits WHERE created_at < datetime('now','-2 day')")
+    tokens = session.get("pending", {})
+    token = tokens.get(target)
+    if not ops:                                  # nothing staged → drop the row
+        if token:
+            cur.execute("DELETE FROM pending_edits WHERE token=?", (token,))
+            tokens.pop(target, None)
+            session["pending"] = tokens
+        cur.commit()
+        return
+    if not token:
+        token = secrets.token_hex(16)
+        tokens[target] = token
+        session["pending"] = tokens
+    cur.execute(
+        "INSERT INTO pending_edits(token,kind,payload) VALUES(?,?,?) "
+        "ON CONFLICT(token) DO UPDATE SET payload=excluded.payload",
+        (token, target, json.dumps(ops, ensure_ascii=False)))
+    cur.commit()
 
 
-def clear_pending(discard_files=False):
-    token = session.pop("pending_token", None)
-    if token:
+def _drop_op_files(op):
+    for rel in op.get("payload", {}).get("_new_files", []):
+        images.delete_upload(rel)
+
+
+def stage_op(kind, payload):
+    """Merge one edit into its target's changeset. Returns the new op count.
+
+    Merge rules: essay_meta / essay_hero / site are singletons (a newer edit
+    supersedes the older, whose staged files are deleted); plate_update and
+    plate_replace are singletons per plate; plate_add always appends."""
+    target = _target_of(kind, payload)
+    cs = get_changeset(target)
+    ops = cs["ops"] if cs else []
+
+    def supersede(match):
+        kept = []
+        for op in ops:
+            if match(op):
+                _drop_op_files(op)
+            else:
+                kept.append(op)
+        return kept
+
+    if kind in ("essay_meta", "essay_hero"):
+        ops = supersede(lambda op: op["kind"] == kind)
+    elif kind in ("plate_update", "plate_replace"):
+        ops = supersede(lambda op: op["kind"] == kind
+                        and op["payload"]["plate_id"] == payload["plate_id"])
+    elif kind == "site":
+        prev = next((op for op in ops if op["kind"] == "site"), None)
+        if prev:
+            # texts: the form posts every field, so the new set wins outright;
+            # images: keep earlier staged uploads unless this edit replaces them
+            merged_imgs = dict(prev["payload"].get("images", {}))
+            for k, v in payload["images"].items():
+                old = merged_imgs.get(k)
+                if old and old.startswith("/uploads/site/"):
+                    images.delete_upload(old[len("/uploads/"):])
+                merged_imgs[k] = v
+            payload["images"] = merged_imgs
+            payload["_new_files"] = sorted(
+                set(prev["payload"].get("_new_files", []))
+                | set(payload.get("_new_files", [])))
+            ops = [op for op in ops if op["kind"] != "site"]
+
+    ops.append({"kind": kind, "payload": payload})
+    _write_changeset(target, ops)
+    return len(ops)
+
+
+def unstage_kind(target, kind, plate_id=None):
+    """Remove one staged op (used when a re-edit matches the live values)."""
+    cs = get_changeset(target)
+    if not cs:
+        return
+    kept = []
+    for op in cs["ops"]:
+        hit = op["kind"] == kind and (plate_id is None
+                                      or op["payload"].get("plate_id") == plate_id)
+        if hit:
+            _drop_op_files(op)
+        else:
+            kept.append(op)
+    _write_changeset(target, kept)
+
+
+def drop_changeset(target, discard_files):
+    cs = get_changeset(target)
+    if cs:
         if discard_files:
-            _discard_pending_files(token)
+            for op in cs["ops"]:
+                _drop_op_files(op)
+        tokens = session.get("pending", {})
+        tokens.pop(target, None)
+        session["pending"] = tokens
         cur = db.get_db()
-        cur.execute("DELETE FROM pending_edits WHERE token=?", (token,))
+        cur.execute("DELETE FROM pending_edits WHERE token=?", (cs["token"],))
         cur.commit()
 
 
@@ -391,22 +470,35 @@ def essay_edit(essay_id):
     essay = get_essay(essay_id)
     if not essay:
         abort(404)
-    plates = build_plates_view(get_plates(essay_id))
-    return render_template("admin/editor.html", essay=essay, plates=plates)
+    cs = get_changeset(f"essay:{essay_id}")
+    if cs:
+        # show staged values in the form so the owner keeps editing seamlessly
+        essay, plates = _apply_ops_to_context(essay_id, cs["ops"])
+    else:
+        plates = build_plates_view(get_plates(essay_id))
+    return render_template("admin/editor.html", essay=essay, plates=plates,
+                           cs_count=len(cs["ops"]) if cs else 0,
+                           cs_target=f"essay:{essay_id}")
 
 
 @app.route("/admin/essays/<int:essay_id>/save", methods=["POST"])
 @login_required
 def essay_save(essay_id):
-    if not get_essay(essay_id):
+    essay = get_essay(essay_id)
+    if not essay:
         abort(404)
     f = request.form
     fields = {k: f.get(k, "").strip() for k in
               ("title", "kicker", "location", "date_text", "summary",
                "lede", "outro", "signature", "slug")}
     fields["signature"] = fields["signature"] or "BUN"
-    stage_pending("essay_meta", {"essay_id": essay_id, "fields": fields})
-    return redirect(url_for("preview_pending"))
+    if all(fields[k] == (essay[k] or "") for k in fields):
+        unstage_kind(f"essay:{essay_id}", "essay_meta")
+        flash("Text matches the live version — nothing staged.")
+    else:
+        n = stage_op("essay_meta", {"essay_id": essay_id, "fields": fields})
+        flash(f"Staged ✎ ({n} pending) — preview when you're ready.")
+    return redirect(url_for("essay_edit", essay_id=essay_id))
 
 
 @app.route("/admin/essays/<int:essay_id>/hero", methods=["POST"])
@@ -423,9 +515,10 @@ def essay_hero(essay_id):
     except ValueError as e:
         flash(str(e))
         return redirect(url_for("essay_edit", essay_id=essay_id))
-    stage_pending("essay_hero", {"essay_id": essay_id, "rel": rel,
-                                 "old": essay["hero_image"], "_new_files": [rel]})
-    return redirect(url_for("preview_pending"))
+    n = stage_op("essay_hero", {"essay_id": essay_id, "rel": rel,
+                                "old": essay["hero_image"], "_new_files": [rel]})
+    flash(f"Cover staged ✎ ({n} pending) — preview when you're ready.")
+    return redirect(url_for("essay_edit", essay_id=essay_id))
 
 
 @app.route("/admin/essays/<int:essay_id>/publish", methods=["POST"])
@@ -490,14 +583,15 @@ def plate_add(essay_id):
         except ValueError as e:
             flash(str(e))
             return redirect(url_for("essay_edit", essay_id=essay_id))
-    stage_pending("plate_add", {
+    n = stage_op("plate_add", {
         "essay_id": essay_id, "position": nextpos, "plate_kind": kind,
         "rel": image_rel, "_new_files": [image_rel] if image_rel else [],
         "fields": {"layout": request.form.get("layout", "normal"),
                    "caption": request.form.get("caption", "").strip(),
                    "alt": request.form.get("alt", "").strip()},
     })
-    return redirect(url_for("preview_pending"))
+    flash(f"New plate staged ✎ ({n} pending) — preview when you're ready.")
+    return redirect(url_for("essay_edit", essay_id=essay_id) + "#plates")
 
 
 @app.route("/admin/plates/<int:plate_id>/update", methods=["POST"])
@@ -506,13 +600,18 @@ def plate_update(plate_id):
     plate = db.get_db().execute("SELECT * FROM plates WHERE id=?", (plate_id,)).fetchone()
     if not plate:
         abort(404)
-    stage_pending("plate_update", {
-        "essay_id": plate["essay_id"], "plate_id": plate_id,
-        "fields": {"caption": request.form.get("caption", "").strip(),
-                   "layout": request.form.get("layout", "normal"),
-                   "alt": request.form.get("alt", "").strip()},
-    })
-    return redirect(url_for("preview_pending"))
+    fields = {"caption": request.form.get("caption", "").strip(),
+              "layout": request.form.get("layout", "normal"),
+              "alt": request.form.get("alt", "").strip()}
+    if all(fields[k] == (plate[k] or "") for k in fields):
+        unstage_kind(f"essay:{plate['essay_id']}", "plate_update", plate_id)
+        flash("Plate matches the live version — nothing staged.")
+    else:
+        n = stage_op("plate_update", {"essay_id": plate["essay_id"],
+                                      "plate_id": plate_id, "fields": fields})
+        flash(f"Staged ✎ ({n} pending) — preview when you're ready.")
+    return redirect(url_for("essay_edit", essay_id=plate["essay_id"])
+                    + f"#plate-{plate_id}")
 
 
 @app.route("/admin/plates/<int:plate_id>/replace", methods=["POST"])
@@ -529,11 +628,13 @@ def plate_replace(plate_id):
     except ValueError as e:
         flash(str(e))
         return redirect(url_for("essay_edit", essay_id=plate["essay_id"]) + "#plates")
-    stage_pending("plate_replace", {
+    n = stage_op("plate_replace", {
         "essay_id": plate["essay_id"], "plate_id": plate_id,
         "rel": rel, "old": plate["image"], "_new_files": [rel],
     })
-    return redirect(url_for("preview_pending"))
+    flash(f"Image staged ✎ ({n} pending) — preview when you're ready.")
+    return redirect(url_for("essay_edit", essay_id=plate["essay_id"])
+                    + f"#plate-{plate_id}")
 
 
 @app.route("/admin/plates/<int:plate_id>/delete", methods=["POST"])
@@ -593,7 +694,12 @@ def stats():
 @app.route("/admin/site")
 @login_required
 def site_edit():
-    return render_template("admin/site.html", defaults=SITE_DEFAULTS)
+    cs = get_changeset("site")
+    ctx = {"defaults": SITE_DEFAULTS, "cs_count": len(cs["ops"]) if cs else 0,
+           "cs_target": "site"}
+    if cs:
+        ctx["site"] = _merged_site(cs["ops"])   # show staged values in the form
+    return render_template("admin/site.html", **ctx)
 
 
 @app.route("/admin/site/save", methods=["POST"])
@@ -613,55 +719,90 @@ def site_save():
                 return redirect(url_for("site_edit"))
             new_images[key] = "/uploads/" + rel
             new_files.append(rel)
-    stage_pending("site", {"texts": texts, "images": new_images,
-                           "_new_files": new_files})
-    return redirect(url_for("preview_pending"))
+    live = get_site()
+    # blank input means "use the default", so compare what visitors would see
+    texts_changed = any(
+        (texts[k] if texts[k] else SITE_DEFAULTS[k]) != live[k] for k in texts)
+    if not texts_changed and not new_images and not get_changeset("site"):
+        flash("Everything matches the live site — nothing staged.")
+        return redirect(url_for("site_edit"))
+    n = stage_op("site", {"texts": texts, "images": new_images,
+                          "_new_files": new_files})
+    flash(f"Staged ✎ ({n} pending) — preview when you're ready.")
+    return redirect(url_for("site_edit"))
 
 
 # --------------------------------------------------------------------------
-# preview → confirm / discard (staged edits render on the real page first)
+# preview → confirm / discard (the whole changeset renders on the real page)
 # --------------------------------------------------------------------------
 
-def _merged_essay_context(pending):
-    """Essay + plates with the staged change applied virtually (nothing saved)."""
-    kind, payload = pending["kind"], pending["payload"]
-    essay = dict(get_essay(payload["essay_id"]) or {})
+def _apply_ops_to_context(essay_id, ops):
+    """Essay + plates with every staged op applied virtually (nothing saved)."""
+    essay = get_essay(essay_id)
     if not essay:
         abort(404)
-    plates = [dict(p) for p in get_plates(payload["essay_id"])]
-    if kind == "essay_meta":
-        fields = dict(payload["fields"])
-        fields.pop("slug", None)          # slug shown on confirm, not previewable
-        essay.update(fields)
-    elif kind == "essay_hero":
-        essay["hero_image"] = payload["rel"]
-    elif kind == "plate_update":
-        for p in plates:
-            if p["id"] == payload["plate_id"]:
-                p.update(payload["fields"])
-    elif kind == "plate_replace":
-        for p in plates:
-            if p["id"] == payload["plate_id"]:
-                p["image"] = payload["rel"]
-    elif kind == "plate_add":
-        plates.append({"id": 0, "essay_id": payload["essay_id"],
-                       "position": payload["position"], "kind": payload["plate_kind"],
-                       "image": payload.get("rel", ""), **payload["fields"]})
+    essay = dict(essay)
+    plates = [dict(p) for p in get_plates(essay_id)]
+    for op in ops:
+        kind, payload = op["kind"], op["payload"]
+        if kind == "essay_meta":
+            essay.update(payload["fields"])   # incl. slug so the editor shows it
+            essay["_staged"] = True
+        elif kind == "essay_hero":
+            essay["hero_image"] = payload["rel"]
+            essay["_staged_hero"] = True
+        elif kind == "plate_update":
+            for p in plates:
+                if p["id"] == payload["plate_id"]:
+                    p.update(payload["fields"])
+                    p["_staged"] = True
+        elif kind == "plate_replace":
+            for p in plates:
+                if p["id"] == payload["plate_id"]:
+                    p["image"] = payload["rel"]
+                    p["_staged"] = True
+        elif kind == "plate_add":
+            plates.append({"id": 0, "essay_id": essay_id,
+                           "position": payload["position"],
+                           "kind": payload["plate_kind"],
+                           "image": payload.get("rel", ""),
+                           "_staged_new": True, **payload["fields"]})
+    plates.sort(key=lambda p: (p["position"], p["id"] or 10**9))
     return essay, build_plates_view(plates)
+
+
+def _merged_site(ops):
+    merged = get_site()
+    for op in ops:
+        if op["kind"] != "site":
+            continue
+        payload = op["payload"]
+        merged.update({k: (v if v else SITE_DEFAULTS[k])
+                       for k, v in payload["texts"].items()})
+        merged.update(payload["images"])
+    return merged
+
+
+def _resolve_target(raw):
+    """Validate the ?t= / form target and return it, or None."""
+    if raw == "site":
+        return "site" if get_changeset("site") else None
+    if raw and raw.startswith("essay:"):
+        return raw if get_changeset(raw) else None
+    # no explicit target: if exactly one changeset exists, use it
+    pending = [t for t in session.get("pending", {}) if get_changeset(t)]
+    return pending[0] if len(pending) == 1 else None
 
 
 @app.route("/admin/preview")
 @login_required
 def preview_pending():
-    pending = load_pending()
-    if not pending:
+    target = _resolve_target(request.args.get("t", ""))
+    if not target:
         flash("Nothing to preview.")
         return redirect(url_for("dashboard"))
-    if pending["kind"] == "site":
-        payload = pending["payload"]
-        merged = get_site()
-        merged.update({k: v for k, v in payload["texts"].items() if v.strip()})
-        merged.update(payload["images"])
+    cs = get_changeset(target)
+    if target == "site":
         rows = db.get_db().execute(
             "SELECT * FROM essays WHERE status='published' "
             "ORDER BY published_at DESC, id DESC").fetchall()
@@ -669,93 +810,97 @@ def preview_pending():
             f for f in os.listdir(os.path.join(BASE_DIR, "static", "images"))
             if re.match(r"g\d+\.jpg$", f))
         return render_template("landing.html", featured=rows[0] if rows else None,
-                               recent=rows[1:], gallery=gallery, site=merged,
-                               confirm_bar=True)
-    essay, plates = _merged_essay_context(pending)
+                               recent=rows[1:], gallery=gallery,
+                               site=_merged_site(cs["ops"]), confirm_bar=True,
+                               cs_target=target, cs_count=len(cs["ops"]),
+                               back_url=url_for("site_edit"))
+    essay_id = int(target.split(":", 1)[1])
+    essay, plates = _apply_ops_to_context(essay_id, cs["ops"])
     return render_template("essay.html", essay=essay, plates=plates,
                            preview=(essay.get("status") != "published"),
-                           confirm_bar=True)
+                           confirm_bar=True, cs_target=target,
+                           cs_count=len(cs["ops"]),
+                           back_url=url_for("essay_edit", essay_id=essay_id))
 
 
 @app.route("/admin/preview/confirm", methods=["POST"])
 @login_required
 def preview_confirm():
-    pending = load_pending()
-    if not pending:
+    target = _resolve_target(request.form.get("t", ""))
+    if not target:
         return redirect(url_for("dashboard"))
-    kind, payload = pending["kind"], pending["payload"]
+    cs = get_changeset(target)
     cur = db.get_db()
     back = url_for("dashboard")
-    if kind == "essay_meta":
-        f = payload["fields"]
-        eid = payload["essay_id"]
-        essay = get_essay(eid)
-        new_slug = unique_slug(f["slug"], eid) if f.get("slug") else essay["slug"]
-        cur.execute(
-            "UPDATE essays SET title=?, kicker=?, location=?, date_text=?, summary=?, "
-            "lede=?, outro=?, signature=?, slug=?, updated_at=datetime('now') WHERE id=?",
-            (f["title"], f["kicker"], f["location"], f["date_text"], f["summary"],
-             f["lede"], f["outro"], f["signature"], new_slug, eid))
+    for op in cs["ops"]:
+        kind, payload = op["kind"], op["payload"]
+        if kind == "essay_meta":
+            f = payload["fields"]
+            eid = payload["essay_id"]
+            essay = get_essay(eid)
+            new_slug = unique_slug(f["slug"], eid) if f.get("slug") else essay["slug"]
+            cur.execute(
+                "UPDATE essays SET title=?, kicker=?, location=?, date_text=?, "
+                "summary=?, lede=?, outro=?, signature=?, slug=? WHERE id=?",
+                (f["title"], f["kicker"], f["location"], f["date_text"], f["summary"],
+                 f["lede"], f["outro"], f["signature"], new_slug, eid))
+        elif kind == "essay_hero":
+            cur.execute("UPDATE essays SET hero_image=? WHERE id=?",
+                        (payload["rel"], payload["essay_id"]))
+            if payload.get("old"):
+                images.delete_upload(payload["old"])
+        elif kind == "plate_update":
+            f = payload["fields"]
+            cur.execute("UPDATE plates SET caption=?, layout=?, alt=? WHERE id=?",
+                        (f["caption"], f["layout"], f["alt"], payload["plate_id"]))
+        elif kind == "plate_replace":
+            cur.execute("UPDATE plates SET image=? WHERE id=?",
+                        (payload["rel"], payload["plate_id"]))
+            if payload.get("old"):
+                images.delete_upload(payload["old"])
+        elif kind == "plate_add":
+            f = payload["fields"]
+            cur.execute(
+                "INSERT INTO plates(essay_id, position, kind, image, layout, caption, alt) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (payload["essay_id"], payload["position"], payload["plate_kind"],
+                 payload.get("rel", ""), f["layout"], f["caption"], f["alt"]))
+        elif kind == "site":
+            for key, value in payload["texts"].items():
+                cur.execute("INSERT INTO site_content(key,value) VALUES(?,?) "
+                            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                            (key, value))
+            for key, value in payload["images"].items():
+                old = cur.execute("SELECT value FROM site_content WHERE key=?",
+                                  (key,)).fetchone()
+                if old and (old["value"] or "").startswith("/uploads/site/"):
+                    images.delete_upload(old["value"][len("/uploads/"):])
+                cur.execute("INSERT INTO site_content(key,value) VALUES(?,?) "
+                            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                            (key, value))
+    if target.startswith("essay:"):
+        eid = int(target.split(":", 1)[1])
+        cur.execute("UPDATE essays SET updated_at=datetime('now') WHERE id=?", (eid,))
         back = url_for("essay_edit", essay_id=eid)
-    elif kind == "essay_hero":
-        eid = payload["essay_id"]
-        cur.execute("UPDATE essays SET hero_image=?, updated_at=datetime('now') WHERE id=?",
-                    (payload["rel"], eid))
-        if payload.get("old"):
-            images.delete_upload(payload["old"])
-        back = url_for("essay_edit", essay_id=eid)
-    elif kind == "plate_update":
-        f = payload["fields"]
-        cur.execute("UPDATE plates SET caption=?, layout=?, alt=? WHERE id=?",
-                    (f["caption"], f["layout"], f["alt"], payload["plate_id"]))
-        back = url_for("essay_edit", essay_id=payload["essay_id"]) + "#plates"
-    elif kind == "plate_replace":
-        cur.execute("UPDATE plates SET image=? WHERE id=?",
-                    (payload["rel"], payload["plate_id"]))
-        if payload.get("old"):
-            images.delete_upload(payload["old"])
-        back = url_for("essay_edit", essay_id=payload["essay_id"]) + "#plates"
-    elif kind == "plate_add":
-        f = payload["fields"]
-        cur.execute(
-            "INSERT INTO plates(essay_id, position, kind, image, layout, caption, alt) "
-            "VALUES(?,?,?,?,?,?,?)",
-            (payload["essay_id"], payload["position"], payload["plate_kind"],
-             payload.get("rel", ""), f["layout"], f["caption"], f["alt"]))
-        back = url_for("essay_edit", essay_id=payload["essay_id"]) + "#plates"
-    elif kind == "site":
-        for key, value in payload["texts"].items():
-            cur.execute("INSERT INTO site_content(key,value) VALUES(?,?) "
-                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
-        for key, value in payload["images"].items():
-            old = cur.execute("SELECT value FROM site_content WHERE key=?", (key,)).fetchone()
-            if old and (old["value"] or "").startswith("/uploads/site/"):
-                images.delete_upload(old["value"][len("/uploads/"):])
-            cur.execute("INSERT INTO site_content(key,value) VALUES(?,?) "
-                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+    else:
         back = url_for("site_edit")
-    if kind.startswith(("essay", "plate")):
-        cur.execute("UPDATE essays SET updated_at=datetime('now') WHERE id=?",
-                    (payload["essay_id"],))
     cur.commit()
-    clear_pending(discard_files=False)
-    flash("Changes published ✓")
+    n = len(cs["ops"])
+    drop_changeset(target, discard_files=False)
+    flash(f"Published ✓ — {n} change{'s' if n > 1 else ''} now live.")
     return redirect(back)
 
 
 @app.route("/admin/preview/discard", methods=["POST"])
 @login_required
 def preview_discard():
-    pending = load_pending()
+    target = _resolve_target(request.form.get("t", ""))
     back = url_for("dashboard")
-    if pending:
-        payload = pending["payload"]
-        if pending["kind"] == "site":
-            back = url_for("site_edit")
-        else:
-            back = url_for("essay_edit", essay_id=payload["essay_id"])
-    clear_pending(discard_files=True)
-    flash("Changes discarded.")
+    if target:
+        back = url_for("site_edit") if target == "site" else \
+            url_for("essay_edit", essay_id=int(target.split(":", 1)[1]))
+        drop_changeset(target, discard_files=True)
+    flash("Staged changes discarded.")
     return redirect(back)
 
 

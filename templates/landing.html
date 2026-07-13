@@ -123,6 +123,8 @@
   .confirm-bar .yes:hover{filter:brightness(1.1)}
   .confirm-bar .no{background:transparent;color:#d8d2c7;border:1px solid #6e675e}
   .confirm-bar .no:hover{border-color:#c0392b;color:#ffd7d0}
+  .confirm-bar .keep{color:#d8d2c7;font-size:.85rem;font-weight:600;padding:.7rem .6rem;border-radius:8px}
+  .confirm-bar .keep:hover{color:#e8a87b}
   body.has-confirm{padding-bottom:4.5rem}
   .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
   .reveal.show{opacity:1;transform:none}
@@ -266,14 +268,17 @@
 
 {% if confirm_bar %}
 <div class="confirm-bar" role="region" aria-label="Confirm your changes">
-  <span class="msg">Previewing unsaved changes — nothing is published yet.</span>
+  <span class="msg">Previewing <b>{{ cs_count }}</b> draft change{{ 's' if cs_count > 1 }} — nothing is live yet.</span>
   <form method="post" action="/admin/preview/confirm" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="yes" type="submit">✓ Confirm &amp; save</button>
+    <input type="hidden" name="t" value="{{ cs_target }}">
+    <button class="yes" type="submit">✓ Publish {{ cs_count }} change{{ 's' if cs_count > 1 }}</button>
   </form>
-  <form method="post" action="/admin/preview/discard" style="display:inline">
+  <a class="keep" href="{{ back_url }}">← Keep editing</a>
+  <form method="post" action="/admin/preview/discard" style="display:inline" onsubmit="return confirm('Discard all draft changes?')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="no" type="submit">✕ Discard</button>
+    <input type="hidden" name="t" value="{{ cs_target }}">
+    <button class="no" type="submit">✕ Discard all</button>
   </form>
 </div>
 {% endif %}

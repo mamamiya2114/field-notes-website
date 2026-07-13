@@ -29,8 +29,8 @@
 </div>
 
 <div class="flash" style="border-left-color:#8a8378">
-  ✎ Every content change is <b>previewed on the real page first</b> — nothing goes live until you press
-  “Confirm &amp; save” on the preview.
+  ✎ Edits are saved as <b>drafts</b> — stack up as many as you like, then
+  <b>Preview all changes</b> once and publish them together. Nothing goes live until then.
 </div>
 
 <!-- ---------- meta ---------- -->
@@ -62,7 +62,7 @@
   <div class="field"><label>Slug (URL)</label>
     <input type="text" name="slug" value="{{ essay.slug }}">
     <div class="hint">Page address: /essay/<b>{{ essay.slug }}</b> — changing it breaks old links</div></div>
-  <button class="btn btn-primary" type="submit">Preview changes</button>
+  <button class="btn btn-primary" type="submit">Save draft</button>
 </div>
 </form>
 
@@ -78,7 +78,7 @@
     <form method="post" action="/admin/essays/{{ essay.id }}/hero" enctype="multipart/form-data" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="file" name="hero" accept="image/*" required style="min-width:0;max-width:100%">
-      <button class="btn" type="submit">Upload &amp; preview</button>
+      <button class="btn" type="submit">Upload to draft</button>
     </form>
   </div>
 </div>
@@ -87,22 +87,26 @@
 <h2 id="plates" style="font-family:var(--serif);font-weight:400;font-size:1.4rem;margin:2rem 0 1rem">Plates · {{ plates|length }}</h2>
 
 {% for p in plates %}
-<div class="card">
+<div class="card" id="plate-{{ p.id }}" {% if p._staged or p._staged_new %}style="border-color:#d9a08a;box-shadow:0 0 0 1px #d9a08a inset"{% endif %}>
   <div style="display:flex;gap:1.2rem;flex-wrap:wrap">
     <div style="flex:none;width:220px">
       {% if p.kind == 'photo' %}
         <img src="/uploads/{{ p.image }}" alt="" style="width:220px;height:150px;object-fit:cover;border-radius:10px;margin-bottom:.5rem">
-        <div class="muted" style="font-size:.78rem;margin-bottom:.5rem">{{ p.num }}</div>
-        <form method="post" action="/admin/plates/{{ p.id }}/replace" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:.45rem;width:220px">
+        <div class="muted" style="font-size:.78rem;margin-bottom:.5rem">{{ p.num }}{% if p._staged %} <span class="pill pill-draft">draft</span>{% endif %}{% if p._staged_new %} <span class="pill pill-draft">new · draft</span>{% endif %}</div>
+        {% if p.id %}<form method="post" action="/admin/plates/{{ p.id }}/replace" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:.45rem;width:220px">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="file" name="image" accept="image/*" required style="font-size:.75rem;width:100%;min-width:0">
           <button class="btn btn-sm" type="submit" style="align-self:flex-start">Replace image</button>
-        </form>
+        </form>{% endif %}
       {% else %}
         <div style="width:220px;height:90px;border-radius:10px;background:#1a1714;color:#e8a87b;display:flex;align-items:center;justify-content:center;font-style:italic;font-family:var(--serif)">✦ Interlude</div>
       {% endif %}
     </div>
     <div style="flex:1;min-width:280px">
+      {% if not p.id %}
+      <div class="field" style="margin-bottom:.7rem"><label>Caption (draft — publish or discard from the bar below)</label>
+        <div style="padding:.6rem .8rem;border:1px dashed var(--line);border-radius:9px;background:#faf8f4">{{ p.caption or '—' }}</div></div>
+      {% else %}
       <form method="post" action="/admin/plates/{{ p.id }}/update">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="field" style="margin-bottom:.7rem"><label>Caption</label>
@@ -119,14 +123,15 @@
           {% else %}
           <input type="hidden" name="layout" value="normal"><input type="hidden" name="alt" value="">
           {% endif %}
-          <button class="btn btn-sm btn-primary" type="submit">Preview changes</button>
+          <button class="btn btn-sm btn-primary" type="submit">Save draft</button>
         </div>
       </form>
       <div style="display:flex;gap:.4rem;margin-top:.8rem;border-top:1px solid var(--line);padding-top:.8rem">
-        {% if not loop.first %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up"><button class="btn btn-sm">↑ Up</button></form>{% endif %}
-        {% if not loop.last %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down"><button class="btn btn-sm">↓ Down</button></form>{% endif %}
-        <form method="post" action="/admin/plates/{{ p.id }}/delete" class="inline" onsubmit="return confirm('Delete this plate?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger">Delete</button></form>
+        {% if not loop.first and p.id %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up"><button class="btn btn-sm">↑ Up</button></form>{% endif %}
+        {% if not loop.last and p.id %}<form method="post" action="/admin/plates/{{ p.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down"><button class="btn btn-sm">↓ Down</button></form>{% endif %}
+        {% if p.id %}<form method="post" action="/admin/plates/{{ p.id }}/delete" class="inline" onsubmit="return confirm('Delete this plate?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger">Delete</button></form>{% endif %}
       </div>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -144,7 +149,7 @@
     <div style="display:flex;gap:.8rem;align-items:flex-end">
       <div style="width:180px"><label>Size</label>
         <select name="layout"><option value="normal">Normal</option><option value="full">Full-bleed</option></select></div>
-      <button class="btn btn-accent" type="submit">Upload &amp; preview</button>
+      <button class="btn btn-accent" type="submit">Upload to draft</button>
     </div>
   </form>
 </div>
@@ -156,7 +161,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="kind" value="interlude">
     <div class="field"><label>Text</label><textarea name="caption" rows="2"></textarea></div>
-    <button class="btn" type="submit">Preview</button>
+    <button class="btn" type="submit">Save draft</button>
   </form>
 </div>
 
@@ -167,4 +172,21 @@
     <button class="btn btn-sm btn-danger" type="submit">Delete this essay permanently</button>
   </form>
 </div>
+
+{% if cs_count %}
+<div class="draft-bar">
+  <span>✎ <b>{{ cs_count }}</b> draft change{{ 's' if cs_count > 1 }} — not live yet</span>
+  <a class="btn btn-accent btn-sm" href="/admin/preview?t={{ cs_target }}">Preview all changes</a>
+  <form method="post" action="/admin/preview/discard" class="inline" onsubmit="return confirm('Discard all draft changes?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="t" value="{{ cs_target }}">
+    <button class="btn btn-sm btn-danger" type="submit">Discard all</button>
+  </form>
+</div>
+<style>
+  .draft-bar{position:sticky;bottom:1rem;z-index:30;display:flex;gap:.8rem;align-items:center;justify-content:center;flex-wrap:wrap;
+      background:#1a1714;color:#e8e2d8;border-radius:999px;padding:.65rem 1.3rem;margin-top:1.5rem;
+      box-shadow:0 10px 30px -10px rgba(26,23,20,.5);font-size:.9rem}
+</style>
+{% endif %}
 {% endblock %}

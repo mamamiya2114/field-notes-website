@@ -55,6 +55,14 @@ def _migrate_english_only(conn):
     conn.execute("DELETE FROM site_content WHERE key LIKE 'subscribe_%'")
 
 
+def _migrate_gallery_note(conn):
+    """Add gallery.note (the owner's written note shown in the lightbox) to
+    databases created before the column existed. Idempotent."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(gallery)").fetchall()}
+    if cols and "note" not in cols:
+        conn.execute("ALTER TABLE gallery ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+
+
 def _seed_gallery(conn):
     """First run only: populate the gallery from the bundled static/images/gNN.jpg
     files so the existing archive appears without any manual upload."""
@@ -79,6 +87,7 @@ def init_db():
         with open(SCHEMA_PATH, encoding="utf-8") as f:
             conn.executescript(f.read())
         _migrate_english_only(conn)
+        _migrate_gallery_note(conn)
         _seed_gallery(conn)
         conn.commit()
     finally:

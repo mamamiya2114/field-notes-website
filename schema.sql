@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS gallery (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   position   INTEGER NOT NULL DEFAULT 0,
   image      TEXT NOT NULL,
-  alt        TEXT NOT NULL DEFAULT '',
+  alt        TEXT NOT NULL DEFAULT '',   -- short accessibility text
+  note       TEXT NOT NULL DEFAULT '',   -- the owner's written note, shown in the lightbox
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_gallery_pos ON gallery(position);

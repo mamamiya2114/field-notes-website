@@ -766,24 +766,25 @@ def gallery_add():
             continue
         cur.execute("INSERT INTO gallery(position, image, alt) VALUES(?,?,?)",
                     (nextpos, "/uploads/" + rel,
-                     request.form.get("alt", "").strip()
-                     or "Photograph from the field archive"))
+                     "Photograph from the field archive"))
         nextpos += 1
         added += 1
     cur.commit()
     if added:
-        flash(f"Added {added} photo{'s' if added > 1 else ''} to the archive.")
+        flash(f"Added {added} photo{'s' if added > 1 else ''} — write a note for each below.")
     return redirect(url_for("gallery_edit"))
 
 
-@app.route("/admin/gallery/<int:gid>/alt", methods=["POST"])
+@app.route("/admin/gallery/<int:gid>/update", methods=["POST"])
 @login_required
-def gallery_alt(gid):
-    db.get_db().execute("UPDATE gallery SET alt=? WHERE id=?",
-                        (request.form.get("alt", "").strip(), gid))
+def gallery_update(gid):
+    db.get_db().execute(
+        "UPDATE gallery SET note=?, alt=? WHERE id=?",
+        (request.form.get("note", "").strip(),
+         request.form.get("alt", "").strip(), gid))
     db.get_db().commit()
-    flash("Caption updated.")
-    return redirect(url_for("gallery_edit"))
+    flash("Note saved.")
+    return redirect(url_for("gallery_edit") + f"#photo-{gid}")
 
 
 @app.route("/admin/gallery/<int:gid>/delete", methods=["POST"])

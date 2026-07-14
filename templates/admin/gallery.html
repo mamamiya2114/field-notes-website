@@ -11,8 +11,9 @@
 </div>
 
 <div class="flash" style="border-left-color:#8a8378">
-  Archive photos update the live site <b>immediately</b> — uploads are resized and
-  optimized automatically, and you can reorder or remove them any time.
+  Write a <b>note</b> for each photo — it appears under the enlarged image when a
+  visitor taps it on the site. Archive changes go live <b>immediately</b>; uploads
+  are resized and optimized automatically.
 </div>
 
 <!-- add -->
@@ -24,7 +25,7 @@
     <div class="field" style="margin-bottom:0;flex:1;min-width:220px">
       <label>Image files</label>
       <input type="file" name="images" accept="image/*" multiple required>
-      <div class="hint">Select one or several — originals are fine (max 1400px, JPEG)</div>
+      <div class="hint">Select one or several — originals are fine (max 1400px, JPEG) · write the notes after uploading</div>
     </div>
     <button class="btn btn-accent" type="submit">Upload</button>
   </form>
@@ -33,12 +34,20 @@
 {% if gallery %}
 <div class="gal-grid">
   {% for g in gallery %}
-  <div class="gal-item">
+  <div class="gal-item" id="photo-{{ g.id }}">
     <img src="{{ g.image }}" alt="{{ g.alt }}">
-    <form method="post" action="/admin/gallery/{{ g.id }}/alt" style="margin-top:.55rem">
+    <form method="post" action="/admin/gallery/{{ g.id }}/update" style="margin-top:.6rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="text" name="alt" value="{{ g.alt }}" placeholder="Caption / alt text"
-             style="font-size:.82rem;padding:.4rem .6rem" onchange="this.form.requestSubmit()">
+      <div class="field" style="margin-bottom:.5rem">
+        <label>Note {% if not g.note %}<span style="color:var(--accent);text-transform:none;letter-spacing:0">· not written yet</span>{% endif %}</label>
+        <textarea name="note" rows="4" placeholder="What you want to say about this photograph…">{{ g.note }}</textarea>
+      </div>
+      <div class="field" style="margin-bottom:.5rem">
+        <label>Alt text</label>
+        <input type="text" name="alt" value="{{ g.alt }}" placeholder="Short description for screen readers"
+               style="font-size:.82rem;padding:.4rem .6rem">
+      </div>
+      <button class="btn btn-sm btn-primary" type="submit">Save note</button>
     </form>
     <div class="gal-actions">
       {% if not loop.first %}<form method="post" action="/admin/gallery/{{ g.id }}/move" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up"><button class="btn btn-sm" title="Move earlier">←</button></form>{% endif %}
@@ -56,10 +65,11 @@
 {% endif %}
 
 <style>
-  .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.1rem}
-  .gal-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.6rem}
-  .gal-item img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px;display:block}
-  .gal-actions{display:flex;gap:.35rem;margin-top:.5rem;align-items:center}
+  .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.1rem}
+  .gal-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.7rem;display:flex;flex-direction:column}
+  .gal-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:block}
+  .gal-item textarea{min-height:5rem;font-size:.86rem;line-height:1.55}
   .gal-item input[type=text]{width:100%}
+  .gal-actions{display:flex;gap:.35rem;margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--line);align-items:center}
 </style>
 {% endblock %}

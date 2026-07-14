@@ -102,12 +102,22 @@
   .gitem img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
   .gitem:hover img{transform:scale(1.06)}
   .gitem::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(26,23,20,.06);border-radius:inherit;pointer-events:none}
-  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(15,12,9,.94);display:none;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(15,12,9,.96);display:none;align-items:center;justify-content:center;
+      flex-direction:column;gap:1.1rem;padding:2.5vh 4vw;overflow-y:auto}
   .lightbox.open{display:flex}
-  .lightbox img{max-width:92vw;max-height:84vh;width:auto;height:auto;border-radius:8px;object-fit:contain;background:transparent}
-  .lb-bar{display:flex;gap:1.5rem;align-items:center;color:#cfc8bc;font-size:.85rem}
+  .lightbox img{max-width:92vw;max-height:64vh;width:auto;height:auto;border-radius:8px;object-fit:contain;background:transparent;flex:none}
+  .lb-note{max-width:44rem;text-align:center;color:#e8e2d8;font-family:var(--serif);font-style:italic;font-weight:300;
+      font-size:1.06rem;line-height:1.75;padding:0 1rem}
+  .lb-note:empty{display:none}
+  .lb-note::before{content:"✎";display:block;color:#e8a87b;font-style:normal;font-size:.85rem;margin-bottom:.7rem;opacity:.9}
+  .lb-bar{display:flex;gap:1.5rem;align-items:center;color:#cfc8bc;font-size:.85rem;flex:none}
   .lb-btn{background:none;border:1px solid #4a443c;color:#cfc8bc;border-radius:999px;padding:.5rem 1.2rem;cursor:pointer;font-family:var(--sans);transition:all .2s}
   .lb-btn:hover{border-color:#e8a87b;color:#e8a87b}
+  @media(max-width:640px){
+    .lightbox img{max-height:50vh}
+    .lb-note{font-size:.98rem}
+    .lb-bar{gap:.8rem;flex-wrap:wrap;justify-content:center}
+  }
   .about{display:grid;grid-template-columns:.8fr 1.2fr;gap:4rem;align-items:center;border-top:1px solid var(--line)}
   .about .portrait{aspect-ratio:4/5;border-radius:16px;overflow:hidden}
   .about h2{margin-bottom:1.4rem}
@@ -232,7 +242,7 @@
     <div class="sec-head reveal"><h2>From the archive</h2><span class="sec-note">Field notes between the essays · tap to enlarge</span></div>
     <div class="gallery">
       {% for g in gallery %}
-      <figure class="gitem reveal"><img src="{{ g.image }}" alt="{{ g.alt or 'Photograph from the field archive' }}" loading="lazy"></figure>
+      <figure class="gitem reveal" data-note="{{ g.note }}"><img src="{{ g.image }}" alt="{{ g.alt or g.note or 'Photograph from the field archive' }}" loading="lazy"></figure>
       {% endfor %}
     </div>
   </section>
@@ -241,6 +251,7 @@
 
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLb()">
   <img id="lbImg" src="" alt="Enlarged photograph">
+  <p class="lb-note" id="lbNote"></p>
   <div class="lb-bar">
     <button class="lb-btn" onclick="navLb(-1)">← Prev</button>
     <span id="lbCount"></span>
@@ -304,11 +315,22 @@
   }), { threshold: 0.12 });
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
 
-  const gImgs = [...document.querySelectorAll('.gitem img')];
+  const gFigs = [...document.querySelectorAll('.gitem')];
+  const gImgs = gFigs.map(f => f.querySelector('img'));
   let lbIndex = 0;
-  const lb = document.getElementById('lightbox'), lbImg = document.getElementById('lbImg'), lbCount = document.getElementById('lbCount');
-  gImgs.forEach((img, i) => img.parentElement.addEventListener('click', () => openLb(i)));
-  function openLb(i){ lbIndex=i; lbImg.src=gImgs[i].src; lbCount.textContent=(i+1)+' / '+gImgs.length; lb.classList.add('open'); document.body.style.overflow='hidden'; }
+  const lb = document.getElementById('lightbox'), lbImg = document.getElementById('lbImg'),
+        lbCount = document.getElementById('lbCount'), lbNote = document.getElementById('lbNote');
+  gFigs.forEach((fig, i) => fig.addEventListener('click', () => openLb(i)));
+  function openLb(i){
+    lbIndex = i;
+    lbImg.src = gImgs[i].src;
+    lbImg.alt = gImgs[i].alt;
+    lbNote.textContent = gFigs[i].dataset.note || '';   // the owner's note for this photo
+    lbCount.textContent = (i+1)+' / '+gImgs.length;
+    lb.classList.add('open');
+    lb.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+  }
   function closeLb(){ lb.classList.remove('open'); document.body.style.overflow=''; }
   function navLb(d){ openLb((lbIndex+d+gImgs.length)%gImgs.length); }
   document.addEventListener('keydown', e => {

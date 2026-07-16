@@ -4,13 +4,17 @@
 > เข้าใจโปรเจกต์นี้ได้ครบโดยไม่ต้องถามเจ้าของซ้ำ
 >
 > **Owner:** BUN (mrsobanali786@gmail.com) — สื่อสารภาษาไทย
-> **Live site (legacy, ยังออนไลน์อยู่):** https://bunniee.pythonanywhere.com
-> **Live site (ใหม่ กำลังย้ายไป — ดู §5):** https://fieldnotes.onrender.com (ชื่ออาจถูกเปลี่ยนถ้าซ้ำกับคนอื่น)
+> **Live site (หลัก — ยืนยันแล้วว่า Live):** https://fieldnotes-pph8.onrender.com
+>   (`fieldnotes` เฉย ๆ ชนกับคนอื่นบน Render จริงตามที่เตือนไว้ → ระบบเติม `-pph8` ให้อัตโนมัติ
+>   — `render.yaml` ยังคงเขียน `name: fieldnotes` เพราะเป็นแค่ค่าที่ *ขอ*ไว้ ไม่ใช่ผลลัพธ์จริงเสมอไป)
+> **Live site (legacy — จะยกเลิกเมื่อหมดอายุ):** https://bunniee.pythonanywhere.com
+>   (PythonAnywhere free tier หมดอายุทุก 1 เดือนถ้าไม่กดต่ออายุ — เจ้าของตัดสินใจแล้วว่า
+>   **จะปล่อยให้หมดอายุไปเอง ไม่ต่อ** เมื่อครบกำหนดครั้งถัดไป ไม่ต้องปิดมือ)
 > **GitHub:** https://github.com/mamamiya2114/field-notes-website
-> **Last updated:** 2026-07-16 (commit `9b2d252`)
+> **Last updated:** 2026-07-16 (commit `c70dfb6`)
 >
-> ⚠️ **ตอนนี้มี 2 deployment คู่ขนานกัน** — อ่าน §5 ให้ครบก่อนสรุปว่า "เว็บจริง" คือที่ไหน
-> อย่าเดาจาก URL เดียว ให้เช็คทั้งสองที่จริงเสมอ (`curl .../healthz`)
+> ⚠️ Render คือเว็บจริงตอนนี้ — แต่ PythonAnywhere **ยังออนไลน์อยู่จนกว่าจะหมดอายุ** อย่าเพิ่ง
+> ถือว่าตายแล้ว ถ้า debug อะไรเกี่ยวกับ production ให้ถามเจ้าของว่าหมายถึง URL ไหนเสมอ
 
 ---
 
@@ -175,40 +179,50 @@ login throttle (7 ครั้ง/15 นาที) · upload: verify() + re-enco
 
 ---
 
-## 5. Deployment — **กำลังย้ายจาก PythonAnywhere → Render (2026-07)**
+## 5. Deployment — **Render คือหลักแล้ว, PythonAnywhere จะเลิกใช้เมื่อหมดอายุ (2026-07)**
 
 ### 5.0 สถานะปัจจุบัน (สำคัญ — อ่านก่อน)
 เจ้าของต้องการ **custom domain ของตัวเอง** ซึ่ง PythonAnywhere free tier ทำไม่ได้ (บังคับ
-`username.pythonanywhere.com` เท่านั้น ต้องอัปเกรดเสียเงินถึงจะแม็พโดเมนได้) จึงตัดสินใจย้ายไป
+`username.pythonanywhere.com` เท่านั้น ต้องอัปเกรดเสียเงินถึงจะแม็พโดเมนได้) จึงย้ายไป
 **Render.com** แทน (`render.yaml` ที่เคยเขียนไว้ตั้งแต่แรกแต่ไม่ได้ใช้ ถูกเอากลับมาใช้จริงแล้ว)
+**Render ยืนยันแล้วว่า deploy สำเร็จและเป็นเว็บหลักตอนนี้** — PythonAnywhere จะถูกปล่อยให้
+**หมดอายุไปเอง** (ไม่ต่ออายุ) เมื่อครบกำหนดเดือนถัดไป ไม่ใช่ปิดมือทันที
 
-| | PythonAnywhere (legacy) | Render (ใหม่) |
+| | PythonAnywhere (legacy — จะหมดอายุ) | Render (หลัก — Live แล้ว) |
 |---|---|---|
-| สถานะ ณ commit `9b2d252` | ✅ ยังออนไลน์อยู่ (เช็คแล้ว `/healthz` → 200) | 🔄 เพิ่ง Blueprint deploy ครั้งแรก ระหว่างที่เขียนไฟล์นี้ยังไม่ยืนยันว่า "Live" |
-| URL | https://bunniee.pythonanywhere.com | https://fieldnotes.onrender.com (ชื่ออาจถูกเปลี่ยนถ้าซ้ำ — เช็คจริงที่ Render dashboard) |
-| ข้อมูล (essay/รูป/about) | มีเนื้อหาจริงของเจ้าของอยู่ (Skardu essay ครบ + about ที่กรอกแล้ว) | **ว่างเปล่า/DB ใหม่** — เจ้าของต้องคีย์ essay + อัปโหลดรูป + กรอก about **ใหม่ทั้งหมด**ผ่าน `/admin` (ตัดสินใจแล้วว่าจะทำเอง ไม่ใช้วิธี copy DB ผ่าน Shell) |
-| custom domain | ❌ ทำไม่ได้ (free tier) | ✅ ได้ (ต้องซื้อโดเมนก่อน — **ยังไม่ได้ซื้อ** ณ ตอนเขียนไฟล์นี้) |
+| สถานะ ณ commit `c70dfb6` | ✅ ยังออนไลน์อยู่ (เช็คแล้ว `/healthz` → 200) — **แต่จะไม่ต่ออายุ** ครั้งถัดไปที่ครบ 1 เดือน | ✅ **Live แล้ว** (เช็คแล้ว `/healthz` → 200) |
+| URL | https://bunniee.pythonanywhere.com | **https://fieldnotes-pph8.onrender.com** |
+| ข้อมูล (essay/รูป/about) | มีเนื้อหาจริงของเจ้าของอยู่ (Skardu essay ครบ + about ที่กรอกแล้ว) | ต้องเช็คกับเจ้าของว่าคีย์เนื้อหาจริงผ่าน `/admin` แล้วหรือยัง (ตอน deploy เสร็จใหม่ ๆ ยังเป็น DB เปล่า) |
+| custom domain | ❌ ทำไม่ได้ (free tier) | ✅ ได้ (ต้องซื้อโดเมนก่อน — **ยังไม่ได้ซื้อ** ณ ตอนเขียนไฟล์นี้ ใช้ `.onrender.com` ไปก่อน) |
+
+**⚠️ ชื่อ URL จริงไม่ตรงกับที่ตั้งใน `render.yaml`:** ตั้ง `name: fieldnotes` ไว้ แต่ชื่อนี้ชน
+กับคนอื่นบน Render (ตามที่เตือนไว้ล่วงหน้าว่ามีโอกาสสูง เพราะเป็นชื่อสามัญ) → Render เติม
+suffix `-pph8` ให้อัตโนมัติ กลายเป็น `fieldnotes-pph8.onrender.com` **ห้ามสมมติว่า URL =
+`<name ใน render.yaml>.onrender.com` เป๊ะ ๆ เสมอไป — เช็ค URL จริงจาก Render dashboard
+หรือถามเจ้าของทุกครั้ง**
 
 **สิ่งที่ยังไม่เสร็จ (งานค้างของเจ้าของ ไม่ใช่บั๊ก):**
-1. ยืนยันว่า Render deploy ครั้งแรกจบสมบูรณ์ ("Live" สีเขียว) — ยังไม่ได้เช็คตอนปิด session นี้
-2. เจ้าของยังไม่ได้ตั้งรหัสผ่าน admin บน Render (หน้าแรกเข้า `/admin/login` จะเจอ "Set your password")
-3. เจ้าของยังไม่ได้คีย์เนื้อหาจริง (essay/about/gallery) ลง Render ผ่าน `/admin`
-4. **ยังไม่ได้ซื้อโดเมน** — ตอนนี้ใช้ `.onrender.com` ไปก่อน ซื้อทีหลังได้ไม่ต้อง deploy ใหม่
+1. เช็คกับเจ้าของว่าตั้งรหัสผ่าน admin บน Render แล้วหรือยัง + คีย์เนื้อหาจริงผ่าน `/admin`
+   (essay/about/gallery) ครบหรือยัง — ณ ตอนเขียนไฟล์นี้ยังไม่ยืนยัน
+2. **ยังไม่ได้ซื้อโดเมน** — ใช้ `.onrender.com` ไปก่อน ซื้อทีหลังได้ไม่ต้อง deploy ใหม่
    (แค่ไปเพิ่มใน Render Settings → Custom Domains + ตั้ง DNS record ที่ registrar)
-5. **ยังไม่ได้ตัดสินใจอนาคตของ PythonAnywhere** — จะปล่อยไว้เป็น backup, หรือปิดไปเลย?
-   (ถ้าจะปิด: เข้า PythonAnywhere dashboard → Web tab → disable/delete)
+3. **PythonAnywhere จะหมดอายุเอง** — ไม่ต้องทำอะไรเพิ่ม แค่รู้ไว้ว่าจะหายไปเฉย ๆ เมื่อครบกำหนด
+   (ไม่ใช่ "เว็บพัง" ถ้าเกิดขึ้น — เป็นแผนที่ตั้งใจ) ถ้าเจ้าของเปลี่ยนใจอยากต่ออายุ ต้องกดปุ่ม
+   "Run until 1 month from today" ในหน้า Web ของ PythonAnywhere ก่อนวันหมดอายุ
 
-**ถ้า session ในอนาคตต้องแก้บั๊ก "เว็บใช้ไม่ได้":** ต้องถามเจ้าของก่อนว่าหมายถึง URL ไหน
-(PythonAnywhere หรือ Render) เพราะตอนนี้มี 2 ที่ไม่ใช่ 1
+**ถ้า session ในอนาคตต้องแก้บั๊ก "เว็บใช้ไม่ได้":** **Render (`fieldnotes-pph8.onrender.com`)
+คือเว็บหลักที่ต้องดูก่อน** — PythonAnywhere ยังไม่ตายจนกว่าจะหมดอายุจริง แต่ไม่ใช่ที่ที่เจ้าของ
+ดูแลต่อแล้ว
 
-### 5.1 Render (deployment เป้าหมายใหม่)
+### 5.1 Render (deployment หลัก — **Live** ที่ https://fieldnotes-pph8.onrender.com)
 
 Config ทั้งหมดอยู่ใน [`render.yaml`](render.yaml) แล้ว — deploy ผ่าน **Blueprint**
 (Render dashboard → New + → Blueprint → เลือก repo) ไม่ต้องตั้งอะไรเพิ่มในหน้าเว็บ Render เอง
 
 ```yaml
 # สรุปจาก render.yaml (อ่านไฟล์จริงเพื่อความชัวร์ ไฟล์นี้แก้ได้บ่อย)
-name: fieldnotes              # ← กำหนด URL: https://fieldnotes.onrender.com
+name: fieldnotes              # ← ค่าที่ "ขอ" ไว้ แต่ URL จริงกลายเป็น fieldnotes-pph8
+                               #   เพราะชื่อนี้ชนกับคนอื่นบน Render (ดูหมายเหตุด้านล่าง)
 plan: starter                 # ต้องเป็น starter ขึ้นไป — "free" ไม่มี persistent disk
                                # (ไม่มี disk = app.db + uploads/ หายทุกครั้งที่ redeploy)
 disk: mountPath /var/data, 5GB
@@ -219,15 +233,19 @@ startCommand: "python seed.py; gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT
 **กลไกสำคัญที่ต้องเข้าใจ:**
 - **"Blueprint Name" ในหน้า deploy ของ Render ≠ ชื่อ URL** — Blueprint Name เป็นแค่ชื่อเรียก
   กลุ่ม services ใน dashboard เท่านั้น ชื่อ URL (`<name>.onrender.com`) มาจาก `name:` field
-  ใน `render.yaml` ล้วน ๆ (เคยทำให้เจ้าของสับสนตอน deploy จริง)
+  ใน `render.yaml` (เคยทำให้เจ้าของสับสนตอน deploy จริง)
+- **`name:` ใน render.yaml เป็นแค่คำขอ ไม่ใช่ผลลัพธ์ที่การันตี** — ถ้าชื่อซ้ำกับคนอื่นบน Render
+  (เช่น `fieldnotes` เฉย ๆ) Render จะเติม suffix สุ่มให้เอง (ในเคสนี้ได้ `-pph8`) **URL จริง
+  จึงอาจไม่ตรงกับที่เขียนใน render.yaml เป๊ะ ๆ — เช็คของจริงจาก Render dashboard หรือถาม
+  เจ้าของเสมอ อย่าคำนวณ URL เอาเองจากไฟล์**
 - **แก้ชื่อ URL:** แก้ `name:` ใน render.yaml → commit + push → กลับไปหน้า Render แล้ว
-  **Manual sync** (หรือ push ใหม่จะ sync อัตโนมัติ) — ห้ามลืมว่าถ้าไปแก้ชื่อใน Render
-  Settings ตรง ๆ โดยไม่แก้ render.yaml ด้วย ครั้งหน้าที่ sync จาก Blueprint อาจเปลี่ยนชื่อ
-  กลับไปเป็นค่าใน render.yaml (เพราะ Render เตือนไว้ว่า "All future updates to your
-  Blueprint file will be synced automatically")
+  **Manual sync** (หรือ push ใหม่จะ sync อัตโนมัติ) — แต่ผลลัพธ์อาจโดนเติม suffix อีกถ้าชื่อ
+  ที่เลือกใหม่ยังซ้ำอยู่ — ห้ามลืมว่าถ้าไปแก้ชื่อใน Render Settings ตรง ๆ โดยไม่แก้
+  render.yaml ด้วย ครั้งหน้าที่ sync จาก Blueprint อาจเปลี่ยนชื่อกลับไปเป็นค่าใน render.yaml
 - **ประวัติชื่อ service** (เผื่อเจอ URL เก่าใน log/เอกสาร): `field-notes` (ค่าดั้งเดิมใน
   render.yaml ตั้งแต่ commit `86a7ac6`) → `sobanali-field-notes` (commit `6713709`)
-  → **`fieldnotes`** (commit `9b2d252`, ปัจจุบัน)
+  → `fieldnotes` (commit `9b2d252`) → **URL จริงที่ได้: `fieldnotes-pph8`** (ชนชื่อ, Render
+  เติม suffix อัตโนมัติ)
 - **`seed.py` รันทุกครั้งที่ start** แต่เป็น idempotent (ข้ามถ้ามีข้อมูลอยู่แล้ว) — ปลอดภัย
 - **โค้ดไม่มี hardcode โดเมนไหนเลย** (ตรวจแล้ว: ไม่มี Referer/Origin check, sitemap/robots.txt
   ใช้ `request.url_root` แบบ dynamic) → ย้ายโดเมน/เปลี่ยนชื่อ service ได้โดยไม่ต้องแก้โค้ด `app.py`
@@ -237,7 +255,7 @@ startCommand: "python seed.py; gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT
 ทำได้จริงผ่าน Render Shell (`curl` ไฟล์ zip ลงมาที่ `/var/data/`) แต่เจ้าของเลือกคีย์ใหม่ผ่าน
 `/admin` เอง (เนื้อหาจริงมีแค่ essay เดียว + gallery ไม่กี่รูป ไม่ได้เยอะมาก)
 
-### 5.2 PythonAnywhere (legacy — ยังออนไลน์อยู่ ณ ตอนเขียนไฟล์นี้)
+### 5.2 PythonAnywhere (legacy — ยังออนไลน์อยู่ แต่จะปล่อยให้หมดอายุ ไม่ต่ออายุแล้ว)
 
 | ค่า | |
 |---|---|
@@ -364,11 +382,15 @@ python3 seed.py          # ครั้งเดียว
 
 ## 8. งานค้างเร่งด่วน (ทำก่อนอย่างอื่น — ดู §5.0 ด้วย)
 
-1. **ยืนยัน Render deploy สำเร็จ** ("Live") + ตั้งรหัสผ่าน admin ครั้งแรก
-2. **คีย์เนื้อหาจริงใหม่ผ่าน `/admin`** บน Render (essay Skardu + plates, about bio,
-   LinkedIn/email, gallery) — เจ้าของเลือกทำเองแทนการ copy DB
+~~1. ยืนยัน Render deploy สำเร็จ~~ ✅ **เสร็จแล้ว** — Live ที่ `fieldnotes-pph8.onrender.com`
+   (เช็คแล้วจริง `/healthz` → 200 ตอนอัปเดตไฟล์นี้ครั้งล่าสุด)
+2. **เช็คกับเจ้าของว่าตั้งรหัสผ่าน admin + คีย์เนื้อหาจริงผ่าน `/admin`** บน Render
+   (essay Skardu + plates, about bio, LinkedIn/email, gallery) ครบหรือยัง — ยังไม่ยืนยัน
+   ณ ตอนเขียนไฟล์นี้
 3. **ซื้อโดเมน + ผูกกับ Render** (Settings → Custom Domains + DNS record ที่ registrar)
-4. **ตัดสินใจอนาคตของ PythonAnywhere** — เก็บไว้เป็น backup หรือปิด (ดู §5.0)
+   — ยังไม่ได้ซื้อ ใช้ `.onrender.com` ไปก่อน
+~~4. ตัดสินใจอนาคตของ PythonAnywhere~~ ✅ **ตัดสินใจแล้ว** — ปล่อยให้หมดอายุไปเอง ไม่ต่ออายุ
+   ไม่ต้องทำอะไรเพิ่ม (ดู §5.0/§5.2)
 5. **(เสนอไว้ ยังไม่ได้ทำ) responsive thumbnail สำหรับการ์ด essay** — ดู §7.4 ท้ายสุด
    สำหรับรายละเอียดว่าต้องแก้อะไรบ้าง (schema + `images.py` + regenerate รูปเก่า)
 

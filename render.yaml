@@ -4,7 +4,7 @@
 # are wiped on every redeploy.
 services:
   - type: web
-    name: field-notes
+    name: sobanali-field-notes
     runtime: python
     plan: starter            # starter has persistent disks; "free" does NOT
     buildCommand: "pip install -r requirements.txt"

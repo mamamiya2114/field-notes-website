@@ -44,6 +44,7 @@ app.config.update(
     SESSION_COOKIE_SECURE=HTTPS,                 # cookie only over HTTPS in production
     PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=14),
     MAX_FORM_MEMORY_SIZE=2 * 1024 * 1024,
+    SEND_FILE_MAX_AGE_DEFAULT=86400,            # /static bundled images: cache a day (slow-connection visitors)
 )
 app.teardown_appcontext(db.close_db)
 
@@ -130,6 +131,8 @@ SITE_DEFAULTS = {
                   "observations, fragments of conversation, and references for those who "
                   "want to go deeper.",
     "about_signature": "— BUN",
+    "about_email": "",
+    "about_linkedin": "",
     "about_image": "/static/images/about.jpg",
     "footer_tagline": "A photo essay journal by BUN",
     "footer_instagram": "",
@@ -894,7 +897,8 @@ def preview_pending():
             "SELECT * FROM essays WHERE status='published' "
             "ORDER BY published_at DESC, id DESC").fetchall()
         return render_template("landing.html", featured=rows[0] if rows else None,
-                               recent=rows[1:], gallery=get_gallery(),
+                               recent=rows[1:4], more_essays=len(rows) > 4,
+                               gallery=get_gallery(),
                                site=_merged_site(cs["ops"]), confirm_bar=True,
                                cs_target=target, cs_count=len(cs["ops"]),
                                back_url=url_for("site_edit"))
@@ -998,9 +1002,18 @@ def landing():
         "SELECT * FROM essays WHERE status='published' "
         "ORDER BY published_at DESC, id DESC").fetchall()
     featured = rows[0] if rows else None
-    recent = rows[1:] if len(rows) > 1 else []
+    recent = rows[1:4] if len(rows) > 1 else []   # up to 3 more on the landing
     return render_template("landing.html", featured=featured, recent=recent,
-                           gallery=get_gallery())
+                           more_essays=len(rows) > 4, gallery=get_gallery())
+
+
+@app.route("/essays")
+def essays_index():
+    """Full archive listing — every published essay, newest first."""
+    rows = db.get_db().execute(
+        "SELECT * FROM essays WHERE status='published' "
+        "ORDER BY published_at DESC, id DESC").fetchall()
+    return render_template("essays.html", essays=rows)
 
 
 @app.route("/essay/<slug>")
@@ -1018,7 +1031,11 @@ def essay_view(slug):
 
 @app.route("/uploads/<path:rel>")
 def uploads(rel):
-    return send_from_directory(app.config["UPLOAD_DIR"], rel)
+    # uploaded files get a fresh UUID name every time (see images.py) and are never
+    # overwritten in place, so the same URL can be cached "forever" without going stale.
+    resp = send_from_directory(app.config["UPLOAD_DIR"], rel, max_age=31536000)
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
 
 
 @app.route("/healthz")
@@ -1038,7 +1055,8 @@ def sitemap():
     rows = db.get_db().execute(
         "SELECT slug, COALESCE(updated_at, published_at) AS mod FROM essays "
         "WHERE status='published' ORDER BY published_at DESC").fetchall()
-    urls = [f"<url><loc>{request.url_root}</loc></url>"]
+    urls = [f"<url><loc>{request.url_root}</loc></url>",
+            f"<url><loc>{request.url_root}essays</loc></url>"]
     for r in rows:
         lastmod = (r["mod"] or "")[:10]
         urls.append(

@@ -55,6 +55,13 @@
     <input type="text" name="about_heading" value="{{ site.about_heading }}" placeholder="{{ defaults.about_heading }}"></div>
   <div class="field"><label>About text — paragraphs separated by a blank line</label>
     <textarea name="about_body" rows="6" placeholder="{{ defaults.about_body }}">{{ site.about_body }}</textarea></div>
+  <div class="row">
+    <div class="field"><label>LinkedIn link (URL)</label>
+      <input type="text" name="about_linkedin" value="{{ site.about_linkedin }}" placeholder="https://linkedin.com/in/…"></div>
+    <div class="field"><label>Contact email</label>
+      <input type="text" name="about_email" value="{{ site.about_email }}" placeholder="you@email.com"></div>
+  </div>
+  <div class="hint" style="margin-top:-.4rem;margin-bottom:1.2rem">Shown as a “Get in touch” block in the About section · leave both blank to hide it</div>
   <div class="field" style="margin-bottom:0">
     <label>Portrait photo</label>
     <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
